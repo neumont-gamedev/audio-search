@@ -1,0 +1,77 @@
+{
+  "name": "audio-asset-browser",
+  "version": "0.1.0",
+  "description": "Fast local-first browser for large game audio asset collections",
+  "main": "out/main/main.js",
+  "private": true,
+  "scripts": {
+    "dev": "npm run use:electron && electron-vite dev",
+    "build": "npm run typecheck && npm run use:electron && electron-vite build",
+    "start": "npm run use:electron && electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "npm run use:node && vitest run",
+    "test:watch": "npm run use:node && vitest",
+    "use:node": "node scripts/select-native.mjs node",
+    "use:electron": "node scripts/select-native.mjs electron",
+    "postinstall": "node scripts/cache-native.mjs",
+    "package": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "chokidar": "^4.0.3",
+    "music-metadata": "^7.14.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
+    "@tanstack/react-virtual": "^3.13.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.17.30",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.6",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "eslint": "^8.57.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.19",
+    "vitest": "^2.1.9"
+  },
+  "build": {
+    "appId": "dev.audioassetbrowser.app",
+    "productName": "Audio Asset Browser",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "AudioVideo"
+    }
+  }
+}
