@@ -79,8 +79,12 @@ folder.
    (two extra `GROUP BY`s per fresh query — likely the first thing to hurt) and scroll
    smoothness are all unmeasured. Generating a synthetic 50–100k library is cheap and its
    results could redirect other work.
-4. **Waveforms are not drawn.** The player bar has a slot for it and migration 2 reserves a
-   `waveform` BLOB column. Generate lazily and cache if implemented; never during startup.
+4. **Waveforms are drawn only in the player bar**, not in result rows. They are generated
+   on first play (never at startup) by decoding in the renderer with Web Audio, and cached
+   in `audio_files.waveform` (format: `WAVEFORM_BUCKETS` in shared constants). An upsert
+   clears the cache, so a changed file regenerates. Bytes reach the renderer through
+   `file:readAudioData` (id-keyed, capped at `MAX_WAVEFORM_SOURCE_BYTES`) — the CSP still
+   blocks `fetch` of `audio-asset:`, deliberately.
 5. **Semantic/AI search is not started, by design.** Migration 2 reserves nullable
    `ai_description`, `ai_tags` and `embedding` columns so it can be added without a
    rewrite. The core app must keep working fully offline with no AI service.
@@ -238,7 +242,8 @@ src/
     indexing/indexer.ts  discover -> index -> prune, progress, cancellation
     audio/
       metadata.ts        music-metadata wrapper, bounded concurrency
-      protocol.ts        audio-asset:// handler
+      protocol.ts        audio-asset:// handler (serves byte ranges itself)
+      range.ts           Range header parsing + MIME types (pure, tested)
     ipc/
       channels.ts        channel names (single source of truth)
       validate.ts        argument validation - everything is untrusted

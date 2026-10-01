@@ -23,6 +23,9 @@ export const IPC = {
   copyToDestination: 'file:copyToDestination',
   getPlaybackUrl: 'file:playbackUrl',
   startDrag: 'file:startDrag',
+  readAudioData: 'file:readAudioData',
+  getWaveform: 'file:getWaveform',
+  saveWaveform: 'file:saveWaveform',
 
   listDestinations: 'destination:list',
   addDestination: 'destination:add',

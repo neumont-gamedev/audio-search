@@ -93,7 +93,10 @@ export class IndexWriter {
         bitrate = excluded.bitrate,
         modified_at = excluded.modified_at,
         indexed_at = excluded.indexed_at,
-        metadata_ok = excluded.metadata_ok
+        metadata_ok = excluded.metadata_ok,
+        -- Upsert only runs for new or changed files, so a cached waveform drawn from the
+        -- old contents is dropped and regenerated on next play.
+        waveform = NULL
       RETURNING id
     `);
 
@@ -174,4 +177,20 @@ export function countFiles(db: Database, libraryId?: number): number {
     ? db.prepare(sql).get()
     : db.prepare(sql).get(libraryId)) as { n: number };
   return row.n;
+}
+
+/** The cached waveform for a file, or null if none has been generated (or it was cleared). */
+export function getWaveform(db: Database, fileId: number): Buffer | null {
+  const row = db.prepare('SELECT waveform FROM audio_files WHERE id = ?').get(fileId) as
+    | { waveform: Buffer | null }
+    | undefined;
+  return row?.waveform ?? null;
+}
+
+/** Caches a waveform. Returns false if the file has left the index in the meantime. */
+export function setWaveform(db: Database, fileId: number, data: Uint8Array): boolean {
+  return (
+    db.prepare('UPDATE audio_files SET waveform = ? WHERE id = ?').run(Buffer.from(data), fileId)
+      .changes > 0
+  );
 }

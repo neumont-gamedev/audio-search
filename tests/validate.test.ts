@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { WAVEFORM_BUCKETS, WAVEFORM_FORMAT_VERSION } from '../src/shared/constants';
 import {
   requireFileIds,
   requireId,
   requireString,
+  requireWaveform,
   validateCopyRequest,
   validateFilters,
   validateSearchQuery,
@@ -145,6 +147,33 @@ describe('requireFileIds', () => {
   it('rejects an oversized batch', () => {
     const ids = Array.from({ length: 2001 }, (_, i) => i + 1);
     expect(() => requireFileIds(ids)).toThrow(/at most/);
+  });
+});
+
+describe('requireWaveform', () => {
+  const valid = () => {
+    const data = new Uint8Array(WAVEFORM_BUCKETS + 1);
+    data[0] = WAVEFORM_FORMAT_VERSION;
+    return data;
+  };
+
+  it('accepts data in the current format', () => {
+    const data = valid();
+    expect(requireWaveform(data)).toBe(data);
+  });
+
+  it.each([
+    ['a plain array', Array.from(valid())],
+    ['a string', 'peaks'],
+    ['the wrong length', new Uint8Array(10)],
+  ])('rejects %s', (_label, value) => {
+    expect(() => requireWaveform(value)).toThrow(ValidationError);
+  });
+
+  it('rejects another format version', () => {
+    const data = valid();
+    data[0] = WAVEFORM_FORMAT_VERSION + 1;
+    expect(() => requireWaveform(data)).toThrow(/version/);
   });
 });
 

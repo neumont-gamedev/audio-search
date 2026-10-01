@@ -174,6 +174,14 @@ export interface AudioLibraryApi {
    * engine or a DAW. Call from a `dragstart` handler while the mouse button is still down.
    */
   startDrag(fileIds: number[]): Promise<IpcResponse<DragResult>>;
+  /**
+   * The raw bytes of an indexed file, for decoding into a waveform. Refused for files over
+   * MAX_WAVEFORM_SOURCE_BYTES. Keyed by id, like playback, so no path crosses the bridge.
+   */
+  readAudioData(fileId: number): Promise<IpcResponse<Uint8Array>>;
+  /** The cached waveform (see WAVEFORM_BUCKETS for the format), or null if not generated. */
+  getWaveform(fileId: number): Promise<IpcResponse<Uint8Array | null>>;
+  saveWaveform(fileId: number, data: Uint8Array): Promise<IpcResponse<void>>;
 
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   onLibrariesChanged(listener: () => void): () => void;

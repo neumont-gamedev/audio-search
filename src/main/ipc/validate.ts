@@ -1,4 +1,10 @@
-import { CHANNEL_FILTERS, DURATION_BUCKETS, SUPPORTED_EXTENSIONS } from '../../shared/constants';
+import {
+  CHANNEL_FILTERS,
+  DURATION_BUCKETS,
+  SUPPORTED_EXTENSIONS,
+  WAVEFORM_BUCKETS,
+  WAVEFORM_FORMAT_VERSION,
+} from '../../shared/constants';
 import type {
   AppError,
   CopyRequest,
@@ -164,4 +170,20 @@ export function requireFileIds(value: unknown): number[] {
     throw new ValidationError(`fileIds must contain at most ${MAX_COPY_BATCH} entries`);
   }
   return [...new Set(value.map((id) => requireId(id, 'fileId')))];
+}
+
+/**
+ * Waveform data computed by the renderer, about to be cached. Only the exact current
+ * format is accepted, so the cache can never hold something the player cannot draw, and a
+ * compromised renderer cannot use it to store arbitrary data.
+ */
+export function requireWaveform(value: unknown): Uint8Array {
+  if (!(value instanceof Uint8Array)) throw new ValidationError('waveform must be a byte array');
+  if (value.length !== WAVEFORM_BUCKETS + 1) {
+    throw new ValidationError(`waveform must be ${WAVEFORM_BUCKETS + 1} bytes`);
+  }
+  if (value[0] !== WAVEFORM_FORMAT_VERSION) {
+    throw new ValidationError('waveform has an unsupported format version');
+  }
+  return value;
 }

@@ -1,5 +1,7 @@
 import type { MouseEvent } from 'react';
 import type { UseAudioPlayer } from '../hooks/useAudioPlayer';
+import { useWaveform } from '../hooks/useWaveform';
+import { Waveform } from './Waveform';
 import { formatClock } from '../services/format';
 
 interface Props {
@@ -14,6 +16,7 @@ interface Props {
  */
 export function PlayerBar({ player, autoPlay, onToggleAutoPlay }: Props) {
   const { filename, playing, position, duration, volume, loop } = player;
+  const waveform = useWaveform(player.fileId);
   const progress = duration > 0 ? Math.min(position / duration, 1) : 0;
 
   const scrub = (event: MouseEvent<HTMLDivElement>) => {
@@ -66,12 +69,16 @@ export function PlayerBar({ player, autoPlay, onToggleAutoPlay }: Props) {
         {filename ? <strong>{filename}</strong> : <span>Nothing playing</span>}
       </div>
 
-      {/* Reserved for the waveform: the same slot will render peak data once it is
-          generated lazily, without changing this layout. */}
+      {/* The waveform doubles as the progress bar. Until it is ready (or for a file that
+          cannot be decoded) the plain bar stands in, so seeking always works. */}
       <div className="scrub" onMouseDown={scrub} title="Seek">
-        <div className="scrub-track">
-          <div className="scrub-fill" style={{ width: `${progress * 100}%` }} />
-        </div>
+        {waveform.peaks ? (
+          <Waveform peaks={waveform.peaks} progress={progress} />
+        ) : (
+          <div className="scrub-track">
+            <div className="scrub-fill" style={{ width: `${progress * 100}%` }} />
+          </div>
+        )}
       </div>
 
       <span className="time">

@@ -1,8 +1,12 @@
 import type { Database } from 'better-sqlite3';
-import { net, protocol } from 'electron';
-import { pathToFileURL } from 'node:url';
+import { protocol } from 'electron';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { extname } from 'node:path';
+import { Readable } from 'node:stream';
 import { AUDIO_PROTOCOL } from '../../shared/constants';
 import { createLogger } from '../logger';
+import { audioMimeType, parseByteRange } from './range';
 
 const log = createLogger('audio-protocol');
 
@@ -41,10 +45,34 @@ export function registerAudioProtocolHandler(db: Database): void {
       const row = lookup.get(id) as { absolute_path: string } | undefined;
       if (!row) return new Response('Unknown asset', { status: 404 });
 
-      // net.fetch on a file URL handles range requests, which <audio> relies on to seek.
-      return await net.fetch(pathToFileURL(row.absolute_path).toString(), {
-        bypassCustomProtocolHandlers: true,
-      });
+      const info = await stat(row.absolute_path).catch(() => null);
+      if (!info?.isFile()) return new Response('File missing', { status: 404 });
+
+      // Served by hand rather than via net.fetch(file://): that response carried neither a
+      // length nor range support, so Chromium treated MP3/OGG/M4A as live streams with
+      // infinite duration and seeking them did nothing.
+      const size = info.size;
+      const headers: Record<string, string> = {
+        'Content-Type': audioMimeType(extname(row.absolute_path)),
+        'Accept-Ranges': 'bytes',
+      };
+
+      const range = parseByteRange(request.headers.get('range'), size);
+      if (range === 'unsatisfiable') {
+        return new Response(null, { status: 416, headers: { ...headers, 'Content-Range': `bytes */${size}` } });
+      }
+      if (size === 0) {
+        return new Response(null, { status: 200, headers: { ...headers, 'Content-Length': '0' } });
+      }
+
+      const { start, end } = range ?? { start: 0, end: size - 1 };
+      headers['Content-Length'] = String(end - start + 1);
+      if (range) headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
+
+      // Streamed, so seeking in a long file reads only what is needed; cancelling the
+      // response (the user moved on) closes the file.
+      const body = Readable.toWeb(createReadStream(row.absolute_path, { start, end })) as ReadableStream;
+      return new Response(body, { status: range ? 206 : 200, headers });
     } catch (error) {
       log.warn('could not serve audio request', error);
       return new Response('Playback failed', { status: 500 });

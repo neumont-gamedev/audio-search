@@ -65,3 +65,17 @@ export const COMMON_SAMPLE_RATES = [22050, 44100, 48000, 88200, 96000, 192000] a
 export const AUDIO_PROTOCOL = 'audio-asset';
 
 export const SEARCH_PAGE_SIZE = 200;
+
+/**
+ * Cached waveform format: one version byte, then this many peak buckets, each the largest
+ * absolute sample in its slice of the file, scaled to 0-255. About 1 KB per file.
+ * Bump the version if the encoding changes; stale cache entries are then regenerated.
+ */
+export const WAVEFORM_BUCKETS = 1000;
+export const WAVEFORM_FORMAT_VERSION = 1;
+
+/**
+ * Files larger than this get no waveform: moving and decoding them would cost more than a
+ * preview is worth. The player falls back to a plain progress bar.
+ */
+export const MAX_WAVEFORM_SOURCE_BYTES = 100 * 1024 * 1024;

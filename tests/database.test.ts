@@ -1,7 +1,14 @@
 import BetterSqlite3, { type Database } from 'better-sqlite3';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { countFiles, IndexWriter, loadLibraryStamps, removeFileByPath } from '../src/main/database/audioFiles';
+import {
+  countFiles,
+  getWaveform,
+  IndexWriter,
+  loadLibraryStamps,
+  removeFileByPath,
+  setWaveform,
+} from '../src/main/database/audioFiles';
 import { closeDatabase, createInMemoryDatabase, openDatabase } from '../src/main/database/db';
 import { addLibrary, findLibraryByPath, listLibraries, removeLibrary } from '../src/main/database/libraries';
 import { LATEST_VERSION } from '../src/main/database/migrations';
@@ -183,6 +190,42 @@ describe('IndexWriter', () => {
   });
 
   afterEach(() => db.close());
+
+  describe('waveform cache', () => {
+    const peaks = Uint8Array.from([1, 10, 200, 255]);
+
+    it('stores and returns a waveform, and has none before one is generated', () => {
+      const id = new IndexWriter(db).upsert(record(libraryId, 'a.wav'));
+      expect(getWaveform(db, id)).toBeNull();
+      expect(setWaveform(db, id, peaks)).toBe(true);
+      expect([...(getWaveform(db, id) ?? [])]).toEqual([...peaks]);
+    });
+
+    it('clears the waveform when the file is re-indexed because it changed', () => {
+      const writer = new IndexWriter(db);
+      const id = writer.upsert(record(libraryId, 'a.wav'));
+      setWaveform(db, id, peaks);
+      writer.upsert(record(libraryId, 'a.wav', { fileSize: 999, modifiedAt: 2000 }));
+      expect(getWaveform(db, id)).toBeNull();
+    });
+
+    it('keeps the waveform for an unchanged file on a rescan', () => {
+      const writer = new IndexWriter(db);
+      const id = writer.upsert(record(libraryId, 'a.wav'));
+      setWaveform(db, id, peaks);
+      // Unchanged files are only touched, never upserted (see the indexer).
+      writer.touch(id);
+      expect(getWaveform(db, id)).not.toBeNull();
+    });
+
+    it('reports a file that left the index instead of failing', () => {
+      const writer = new IndexWriter(db);
+      const id = writer.upsert(record(libraryId, 'a.wav'));
+      writer.remove(id);
+      expect(setWaveform(db, id, peaks)).toBe(false);
+      expect(getWaveform(db, id)).toBeNull();
+    });
+  });
 
   it('keeps one row per path when the same file is indexed again', () => {
     const writer = new IndexWriter(db);

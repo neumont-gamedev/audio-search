@@ -60,6 +60,9 @@ const api: AudioLibraryApi = {
 
   getPlaybackUrl: (fileId) => invoke<string>(IPC.getPlaybackUrl, fileId),
   startDrag: (fileIds) => invoke<DragResult>(IPC.startDrag, fileIds),
+  readAudioData: (fileId) => invoke<Uint8Array>(IPC.readAudioData, fileId),
+  getWaveform: (fileId) => invoke<Uint8Array | null>(IPC.getWaveform, fileId),
+  saveWaveform: (fileId, data) => invoke<void>(IPC.saveWaveform, fileId, data),
 
   onScanProgress: (listener) => subscribe<ScanProgress>(EVENTS.scanProgress, listener),
   onLibrariesChanged: (listener) => subscribe<void>(EVENTS.librariesChanged, () => listener()),

@@ -1,8 +1,8 @@
 import type { Database } from 'better-sqlite3';
 import { BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell, type NativeImage } from 'electron';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import appIcon from '../../../build/icon.png?asset';
-import { AUDIO_PROTOCOL } from '../../shared/constants';
+import { AUDIO_PROTOCOL, MAX_WAVEFORM_SOURCE_BYTES } from '../../shared/constants';
 import type {
   AppError,
   AudioFile,
@@ -21,6 +21,7 @@ import {
   listLibraries,
   removeLibrary,
 } from '../database/libraries';
+import { getWaveform, setWaveform } from '../database/audioFiles';
 import { getFacets, getFileById, search } from '../database/search';
 import {
   addDestination,
@@ -42,6 +43,7 @@ import {
   requireFileIds,
   requireId,
   requireString,
+  requireWaveform,
   validateCopyRequest,
   validateSearchQuery,
   ValidationError,
@@ -327,6 +329,26 @@ export function registerHandlers(context: HandlerContext): void {
     window.webContents.startDrag({ file: native[0], files: native, icon: dragIcon() });
 
     return { dragged: onDisk.length, missing: fileIds.length - onDisk.length };
+  });
+
+  /* ---------------------------------------------------------------- waveforms */
+
+  handle<Uint8Array>(IPC.readAudioData, async (rawId) => {
+    const file = requireFile(db, rawId);
+    const info = await stat(file.absolutePath).catch(() => null);
+    if (!info?.isFile()) throw new ValidationError('That file is no longer on disk.');
+    if (info.size > MAX_WAVEFORM_SOURCE_BYTES) {
+      throw new ValidationError('That file is too large to draw a waveform for.');
+    }
+    return readFile(file.absolutePath);
+  });
+
+  handle<Uint8Array | null>(IPC.getWaveform, (rawId) => getWaveform(db, requireId(rawId, 'fileId')));
+
+  handle<void>(IPC.saveWaveform, (rawId, rawData) => {
+    // A file removed from the index while its waveform was being computed is not an
+    // error: the result is simply discarded.
+    setWaveform(db, requireId(rawId, 'fileId'), requireWaveform(rawData));
   });
 
   handle<string>(IPC.getPlaybackUrl, (rawId) => {

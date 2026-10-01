@@ -78,6 +78,11 @@ gh release create v0.2.0 "dist/Audio Asset Browser Setup 0.2.0.exe" "dist/Audio 
    - **Loop** repeats sounds until you stop them, for checking ambiences and loop points.
 
    Both toggles are remembered between launches. Volume always starts at 100%.
+
+   The player bar shows the sound's **waveform**, so you can see at a glance whether it has
+   a long tail, silence at the start, or several hits in one file. The played part is
+   highlighted; click anywhere on it to jump there. It is drawn the first time you play a
+   sound and remembered after that.
 5. **Set a destination** once in the **Copy to** box in the toolbar. "Browse for folder…"
    picks a new one; folders you have already used are listed underneath, most recent
    first.
@@ -169,7 +174,6 @@ Tests only ever work inside temporary directories; they never touch a real asset
 
 Phases 1-7 of the plan are implemented: application shell, indexing, search, preview, the
 asset workflow, library management, and favorites. Tags exist in the schema and IPC layer
-but have no UI yet. Waveform rendering is not drawn
-yet, but the player bar and schema leave a slot for it, and the schema also reserves
-nullable columns (`ai_description`, `ai_tags`, `embedding`) so semantic search can be added
-later without a rewrite. None of that is required for the app to work offline.
+but have no UI yet. The schema also reserves nullable columns (`ai_description`,
+`ai_tags`, `embedding`) so semantic search can be added later without a rewrite. None of
+that is required for the app to work offline.

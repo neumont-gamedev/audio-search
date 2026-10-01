@@ -30,6 +30,9 @@ export interface UseAudioPlayer extends PlayerState {
  */
 const INITIAL_VOLUME = 1;
 
+const UNPLAYABLE_MESSAGE =
+  'That file could not be played. It may be damaged, missing, or use an unsupported codec.';
+
 /** Loop is a listening mode, not a level, so unlike volume it is remembered. */
 const LOOP_KEY = 'audioBrowser.loop';
 
@@ -87,11 +90,14 @@ export function useAudioPlayer(): UseAudioPlayer {
     if (!audio) return;
 
     const onTime = () => setState((s) => ({ ...s, position: audio.currentTime }));
-    const onMeta = () =>
-      setState((s) => ({
-        ...s,
-        duration: Number.isFinite(audio.duration) ? audio.duration : 0,
-      }));
+    // The element's duration is the most precise, but if it cannot be measured (Infinity or
+    // NaN) the duration from the index, set when playback started, is kept rather than
+    // replaced with 0, which would hide the length and disable seeking.
+    const onMeta = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setState((s) => ({ ...s, duration: audio.duration }));
+      }
+    };
     const onEnded = () => setState((s) => ({ ...s, playing: false, position: 0 }));
     const onPlay = () => setState((s) => ({ ...s, playing: true }));
     const onPause = () => setState((s) => ({ ...s, playing: false }));
@@ -99,7 +105,7 @@ export function useAudioPlayer(): UseAudioPlayer {
       setState((s) => ({
         ...s,
         playing: false,
-        error: 'That file could not be played. It may be missing or use an unsupported codec.',
+        error: UNPLAYABLE_MESSAGE,
       }));
 
     audio.addEventListener('timeupdate', onTime);
@@ -147,7 +153,11 @@ export function useAudioPlayer(): UseAudioPlayer {
         if (requestId !== requestRef.current) return;
         // A play() rejection from an interrupted load is normal when auditioning quickly.
         if ((error as Error)?.name === 'AbortError') return;
-        setState((s) => ({ ...s, playing: false, error: errorMessage(error) }));
+        // The browser's own wording ("no supported source was found") means nothing to a
+        // user; say what it means for them, as the element's error event does.
+        const message =
+          (error as Error)?.name === 'NotSupportedError' ? UNPLAYABLE_MESSAGE : errorMessage(error);
+        setState((s) => ({ ...s, playing: false, error: message }));
       }
     })();
   }, []);
