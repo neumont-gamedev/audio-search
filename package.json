@@ -16,7 +16,9 @@
     "use:electron": "node scripts/select-native.mjs electron",
     "postinstall": "node scripts/cache-native.mjs",
     "package": "npm run build && electron-builder --win",
-    "package:portable": "npm run build && electron-builder --win portable"
+    "package:portable": "npm run build && electron-builder --win portable",
+    "release": "npm run package && node scripts/release.mjs",
+    "release:upload": "node scripts/release.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",

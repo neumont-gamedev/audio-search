@@ -112,8 +112,10 @@ Users get the app from **GitHub Releases** (`neumont-gamedev/audio-search`), not
 source. Each release attaches two files from `dist/`: `Audio Asset Browser Setup
 <version>.exe` and `Audio Asset Browser <version> Portable.exe`. `dist/` is git-ignored —
 never commit built binaries. The release tag is `v<version>` and must match `"version"` in
-`package.json`; bump it before building. The step-by-step process is in `README.md`
-("Releasing a new version").
+`package.json`; bump it before building. `npm run release` (`scripts/release.mjs`) builds
+and creates a **draft** GitHub Release via `gh`, after checking login, a clean and pushed
+tree, no existing release for the version, and both builds present. Details in
+`README.md` ("Releasing a new version").
 
 - Builds are **unsigned**; users see a SmartScreen warning. Say so in release notes.
 - The app icon is `build/icon.ico` (16–256 px, multi-size) plus `build/icon.png` (512 px),

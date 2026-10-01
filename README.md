@@ -47,20 +47,24 @@ Other commands:
 `dist/` is git-ignored; built `.exe` files go on a GitHub Release, never into the
 repository.
 
-1. Bump `"version"` in `package.json` (e.g. `0.1.0` → `0.2.0`), commit and push.
-2. Close the app if it is running, then `npm run package`.
-3. On GitHub: **Releases → Draft a new release**. Create a tag matching the version
-   (`v0.2.0`) on `main`, give it a title, and note the SmartScreen workaround in the
-   description.
-4. Attach the two `.exe` files from `dist/` (the installer and the portable). The other
-   files there (`.blockmap`, `latest.yml`, `win-unpacked/`) are not needed.
-5. **Publish release.**
+One-time setup: install the [GitHub CLI](https://cli.github.com/) and run `gh auth login`.
 
-With the GitHub CLI (`gh auth login` once), steps 3–5 are one command:
+1. Bump `"version"` in `package.json` (e.g. `1.0.0` → `1.1.0`), commit and push.
+2. Close the app if it is running, then:
 
-```bash
-gh release create v0.2.0 "dist/Audio Asset Browser Setup 0.2.0.exe" "dist/Audio Asset Browser 0.2.0 Portable.exe" --title "Audio Asset Browser 0.2.0" --generate-notes
-```
+   ```bash
+   npm run release
+   ```
+
+   This builds both `.exe` files and creates a **draft** release tagged `v<version>` with
+   them attached, install instructions, and notes generated from the commits. Only you can
+   see a draft.
+3. Open the link it prints, check the release, and click **Publish release**.
+
+The script refuses (changing nothing on GitHub) if `gh` is not logged in, there are
+uncommitted or unpushed changes, a release for that version already exists, or a build is
+missing. Variants: `npm run release -- --publish` publishes immediately;
+`npm run release:upload` skips the build and uploads what is already in `dist/`.
 
 ## Using it
 
