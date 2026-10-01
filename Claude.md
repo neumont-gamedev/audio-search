@@ -83,8 +83,30 @@ npm test         # vitest (swaps to the Node ABI first)
 npm run typecheck
 npm run lint
 npm run build    # typecheck + production build into out/
-npm run package  # installer into dist/
+npm run package           # Windows installer (nsis) + portable .exe into dist/
+npm run package:portable  # portable .exe only
 ```
+
+## Distribution
+
+Users get the app from **GitHub Releases** (`neumont-gamedev/audio-search`), not from the
+source. Each release attaches two files from `dist/`: `Audio Asset Browser Setup
+<version>.exe` and `Audio Asset Browser <version> Portable.exe`. `dist/` is git-ignored —
+never commit built binaries. The release tag is `v<version>` and must match `"version"` in
+`package.json`; bump it before building. The step-by-step process is in `README.md`
+("Releasing a new version").
+
+- Builds are **unsigned**; users see a SmartScreen warning. Say so in release notes.
+- The app icon is `build/icon.ico` (16–256 px, multi-size) plus `build/icon.png` (512 px),
+  both generated from `audio-search-icon.png` with transparent margins trimmed.
+  electron-builder picks them up from `build/` by convention — no config entry. The
+  packaged window/taskbar icon comes from the `.exe`; `npm run dev` still shows Electron's.
+- The portable build unpacks to `%LOCALAPPDATA%\Temp\<random>\` on each launch and deletes
+  it on a clean exit. A force-killed portable app leaves ~270 MB behind there.
+- Both builds store data in `%APPDATA%\audio-asset-browser` (Electron `userData`), not
+  beside the `.exe`. This is deliberate: the index stores absolute library paths, so
+  carrying it between PCs would not help, and SQLite on a USB stick is slow and fragile.
+  Do not switch to exe-relative storage without also making library paths relative.
 
 ---
 
@@ -119,6 +141,13 @@ It is not set in the user's own environment, so `npm run dev` from a normal term
 
 `Error: spawn UNKNOWN` (errno -4094) from tinypool, reporting "no tests". This is
 environmental, not a code fault — just re-run. Do not go debugging the test config over it.
+
+## `npm run package` fails with `EBUSY` on `dist/win-unpacked`
+
+Something holds a handle inside `dist/`: the packaged app still running, or a shell whose
+working directory is inside `dist/win-unpacked`. A failed build can also leave an orphaned
+`node_modules\7zip-bin\...\7za.exe` running. Close or `cd` out of those, stop any stray
+`7za`, delete `dist/`, and rebuild.
 
 ## CSP: `media-src` allows the audio protocol, `connect-src` does not
 

@@ -6,7 +6,25 @@ index you can search instantly, audition from the keyboard, and copy into a proj
 
 Your audio never leaves your machine. There is no server and no account.
 
-## Getting started
+## Download
+
+Windows builds are published on the
+[Releases page](https://github.com/neumont-gamedev/audio-search/releases/latest). Each
+release has two files — pick one:
+
+| File | What it is |
+| --- | --- |
+| `Audio Asset Browser Setup <version>.exe` | Installer. Installs for your user account only (no admin rights needed) and adds a Start Menu entry. |
+| `Audio Asset Browser <version> Portable.exe` | Portable. Runs directly with nothing installed — handy for USB sticks or lab machines. Starts a little slower, because each launch unpacks itself to the Windows temp folder first. |
+
+The builds are not code-signed, so Windows may show **"Windows protected your PC"** the
+first time. Click **More info → Run anyway**.
+
+Both versions keep their data (libraries, favorites, the search index) in
+`%APPDATA%\audio-asset-browser`, so they share it if you use both on one PC. The data is
+only an index: if it is lost, add your folders again and rescan.
+
+## Getting started (development)
 
 ```bash
 npm install     # also builds the native SQLite binding for Electron and Node
@@ -21,7 +39,28 @@ Other commands:
 | `npm run typecheck` | Type-check main, preload and renderer |
 | `npm run lint` | Lint everything |
 | `npm run build` | Type-check and produce a production build in `out/` |
-| `npm run package` | Build an installer into `dist/` |
+| `npm run package` | Build the Windows installer and portable `.exe` into `dist/` |
+| `npm run package:portable` | Build only the portable `.exe` |
+
+## Releasing a new version
+
+`dist/` is git-ignored; built `.exe` files go on a GitHub Release, never into the
+repository.
+
+1. Bump `"version"` in `package.json` (e.g. `0.1.0` → `0.2.0`), commit and push.
+2. Close the app if it is running, then `npm run package`.
+3. On GitHub: **Releases → Draft a new release**. Create a tag matching the version
+   (`v0.2.0`) on `main`, give it a title, and note the SmartScreen workaround in the
+   description.
+4. Attach the two `.exe` files from `dist/` (the installer and the portable). The other
+   files there (`.blockmap`, `latest.yml`, `win-unpacked/`) are not needed.
+5. **Publish release.**
+
+With the GitHub CLI (`gh auth login` once), steps 3–5 are one command:
+
+```bash
+gh release create v0.2.0 "dist/Audio Asset Browser Setup 0.2.0.exe" "dist/Audio Asset Browser 0.2.0 Portable.exe" --title "Audio Asset Browser 0.2.0" --generate-notes
+```
 
 ## Using it
 
@@ -118,7 +157,8 @@ Tests only ever work inside temporary directories; they never touch a real asset
 ## Status
 
 Phases 1-7 of the plan are implemented: application shell, indexing, search, preview, the
-asset workflow, library management, and favorites/tags. Waveform rendering is not drawn
+asset workflow, library management, and favorites. Tags exist in the schema and IPC layer
+but have no UI yet. Waveform rendering is not drawn
 yet, but the player bar and schema leave a slot for it, and the schema also reserves
 nullable columns (`ai_description`, `ai_tags`, `embedding`) so semantic search can be added
 later without a rewrite. None of that is required for the app to work offline.

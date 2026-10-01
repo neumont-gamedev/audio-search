@@ -15,7 +15,8 @@
     "use:node": "node scripts/select-native.mjs node",
     "use:electron": "node scripts/select-native.mjs electron",
     "postinstall": "node scripts/cache-native.mjs",
-    "package": "npm run build && electron-builder --win"
+    "package": "npm run build && electron-builder --win",
+    "package:portable": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
@@ -58,8 +59,12 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "portable"
       ]
+    },
+    "portable": {
+      "artifactName": "${productName} ${version} Portable.${ext}"
     },
     "mac": {
       "target": [
