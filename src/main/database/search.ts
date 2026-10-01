@@ -66,27 +66,69 @@ const BASE_FROM = `
 `;
 
 /**
- * Turns free text into an FTS5 MATCH expression.
- *
+ * Splits free text into terms to require and terms to exclude. A leading `-` excludes
+ * (`impact -metal`); a hyphen inside a word does not (`sci-fi` is an ordinary term).
+ */
+export function parseSearchText(text: string): { include: string[]; exclude: string[] } {
+  const include: string[] = [];
+  const exclude: string[] = [];
+  for (const raw of text.split(/\s+/)) {
+    const negated = raw.startsWith('-');
+    const term = (negated ? raw.slice(1) : raw).replace(/"/g, '').trim();
+    // Terms of pure punctuation tokenize to nothing and would make FTS5 raise a syntax
+    // error, so require at least one letter or digit. This also drops a lone "-".
+    if (!/[\p{L}\p{N}]/u.test(term)) continue;
+    (negated ? exclude : include).push(term);
+  }
+  return { include, exclude };
+}
+
+/**
  * Every term is quoted (so punctuation in a filename can never be read as FTS syntax) and
- * given a prefix wildcard, then AND-ed together, because additional words should narrow the
- * result set. Returns null when there is nothing searchable.
+ * given a prefix wildcard, matching what the user has typed so far.
+ */
+const ftsTerm = (term: string) => `"${term}"*`;
+
+/**
+ * The FTS5 MATCH expression for the required terms, AND-ed together because additional
+ * words should narrow the result set. Returns null when there is nothing to require.
  */
 export function buildMatchExpression(text: string): string | null {
-  const terms = text
-    .split(/\s+/)
-    .map((term) => term.replace(/"/g, '').trim())
-    // Terms of pure punctuation tokenize to nothing and would make FTS5 raise a syntax
-    // error, so require at least one letter or digit.
-    .filter((term) => /[\p{L}\p{N}]/u.test(term));
+  const { include } = parseSearchText(text);
+  return include.length > 0 ? include.map(ftsTerm).join(' AND ') : null;
+}
 
-  if (terms.length === 0) return null;
-  return terms.map((term) => `"${term}"*`).join(' AND ');
+/**
+ * The FTS5 expression for the excluded terms: a file matching any of them is left out.
+ * Prefix-matched like required terms, so `-metal` also excludes "metallic".
+ */
+export function buildExcludeExpression(text: string): string | null {
+  const { exclude } = parseSearchText(text);
+  return exclude.length > 0 ? exclude.map(ftsTerm).join(' OR ') : null;
 }
 
 interface WhereClause {
   sql: string;
   params: unknown[];
+}
+
+/**
+ * The joins and predicates the search text contributes. Exclusions are a NOT IN over the
+ * FTS index rather than part of the MATCH expression, because FTS5's NOT needs a left-hand
+ * side: an exclusion-only query such as `-metal` could not otherwise be expressed.
+ */
+function buildTextClauses(text: string): { match: string | null; joins: string; clauses: WhereClause[] } {
+  const match = buildMatchExpression(text);
+  const exclude = buildExcludeExpression(text);
+  const clauses: WhereClause[] = [];
+  if (match) clauses.push({ sql: 'audio_files_fts MATCH ?', params: [match] });
+  if (exclude) {
+    clauses.push({
+      sql: 'f.id NOT IN (SELECT rowid FROM audio_files_fts WHERE audio_files_fts MATCH ?)',
+      params: [exclude],
+    });
+  }
+  return { match, joins: match ? 'JOIN audio_files_fts fts ON fts.rowid = f.id' : '', clauses };
 }
 
 /** Builds the filter predicates, optionally skipping one dimension for facet counting. */
@@ -188,17 +230,12 @@ function buildOrderBy(field: SortField, direction: SortDirection, hasMatch: bool
 
 export function search(db: Database, query: SearchQuery): SearchResult {
   const started = Date.now();
-  const match = buildMatchExpression(query.text);
+  const { match, joins, clauses: textClauses } = buildTextClauses(query.text);
 
-  const joins = match ? 'JOIN audio_files_fts fts ON fts.rowid = f.id' : '';
   const where: string[] = [];
   const params: unknown[] = [];
 
-  if (match) {
-    where.push('audio_files_fts MATCH ?');
-    params.push(match);
-  }
-  for (const clause of buildFilterClauses(query.filters)) {
+  for (const clause of [...textClauses, ...buildFilterClauses(query.filters)]) {
     where.push(clause.sql);
     params.push(...clause.params);
   }
@@ -232,17 +269,12 @@ export function search(db: Database, query: SearchQuery): SearchResult {
  * yield instead of always showing the already-narrowed number.
  */
 export function getFacets(db: Database, query: SearchQuery): FacetCounts {
-  const match = buildMatchExpression(query.text);
-  const joins = match ? 'JOIN audio_files_fts fts ON fts.rowid = f.id' : '';
+  const { joins, clauses: textClauses } = buildTextClauses(query.text);
 
   const countBy = (column: string, skip: 'extensions' | 'libraryIds') => {
     const where: string[] = [];
     const params: unknown[] = [];
-    if (match) {
-      where.push('audio_files_fts MATCH ?');
-      params.push(match);
-    }
-    for (const clause of buildFilterClauses(query.filters, skip)) {
+    for (const clause of [...textClauses, ...buildFilterClauses(query.filters, skip)]) {
       where.push(clause.sql);
       params.push(...clause.params);
     }

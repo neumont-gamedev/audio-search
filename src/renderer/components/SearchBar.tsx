@@ -25,7 +25,9 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
         aria-label="Search audio assets"
       />
 
-      <span className="hint">multiple words narrow results</span>
+      <span className="hint" title="impact heavy -metal: impacts that are heavy, but not metal">
+        more words narrow · -word excludes
+      </span>
 
       <button onClick={onToggleFilters} title="Show or hide the filter panel">
         Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''} {showFilters ? '▸' : '◂'}

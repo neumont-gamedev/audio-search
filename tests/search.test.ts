@@ -4,7 +4,13 @@ import type { SearchFilters, SearchQuery } from '../src/shared/types';
 import { IndexWriter, type IndexRecord } from '../src/main/database/audioFiles';
 import { createInMemoryDatabase } from '../src/main/database/db';
 import { addLibrary } from '../src/main/database/libraries';
-import { buildMatchExpression, getFacets, search } from '../src/main/database/search';
+import {
+  buildExcludeExpression,
+  buildMatchExpression,
+  getFacets,
+  parseSearchText,
+  search,
+} from '../src/main/database/search';
 import { setFavorite } from '../src/main/database/userData';
 import { parentFolderName } from '../src/main/filesystem/pathUtils';
 
@@ -83,6 +89,42 @@ describe('buildMatchExpression', () => {
     // Quotes are stripped and each term re-quoted, so this cannot become an FTS operator.
     expect(buildMatchExpression('punch" OR "x')).toBe('"punch"* AND "OR"* AND "x"*');
   });
+
+  it('leaves excluded terms out of the match expression', () => {
+    expect(buildMatchExpression('impact -metal')).toBe('"impact"*');
+    expect(buildMatchExpression('-metal')).toBeNull();
+  });
+});
+
+describe('parseSearchText', () => {
+  it('treats a leading minus as an exclusion', () => {
+    expect(parseSearchText('impact -metal heavy -wood')).toEqual({
+      include: ['impact', 'heavy'],
+      exclude: ['metal', 'wood'],
+    });
+  });
+
+  it('keeps hyphens inside a word as part of an ordinary term', () => {
+    expect(parseSearchText('sci-fi laser')).toEqual({ include: ['sci-fi', 'laser'], exclude: [] });
+  });
+
+  it('ignores a lone or punctuation-only minus term', () => {
+    expect(parseSearchText('impact - -- -*')).toEqual({ include: ['impact'], exclude: [] });
+  });
+});
+
+describe('buildExcludeExpression', () => {
+  it('ORs excluded terms, so matching any one of them excludes a file', () => {
+    expect(buildExcludeExpression('impact -metal -wood')).toBe('"metal"* OR "wood"*');
+  });
+
+  it('returns null when nothing is excluded', () => {
+    expect(buildExcludeExpression('impact heavy')).toBeNull();
+  });
+
+  it('neutralises FTS syntax in an excluded term', () => {
+    expect(buildExcludeExpression('-"x" OR')).toBe('"x"*');
+  });
 });
 
 describe('search', () => {
@@ -152,6 +194,55 @@ describe('search', () => {
 
   it('finds nothing for a term that does not occur', () => {
     expect(search(db, query('xylophone')).total).toBe(0);
+  });
+
+  describe('excluded words', () => {
+    const names = (text: string) =>
+      search(db, query(text))
+        .items.map((item) => item.filename)
+        .sort();
+
+    it('removes files matching an excluded word', () => {
+      expect(names('punch -heavy')).toEqual(['body_punch_03.wav']);
+    });
+
+    it('excludes on folder names too, not just filenames', () => {
+      // Heavy_Punch_03 lives in Combat/Punches/Heavy, body_punch_03 in Combat/Punches.
+      expect(names('combat -medieval')).toEqual(['Heavy_Punch_03.wav', 'body_punch_03.wav']);
+    });
+
+    it('works with no required words: everything except the excluded', () => {
+      expect(search(db, query('-combat')).total).toBe(3);
+      expect(names('-combat')).toEqual(['click.ogg', 'computer_beep.mp3', 'creepy_wind_loop.flac']);
+    });
+
+    it('excludes by prefix, consistent with how required words match', () => {
+      // "-amb" removes Ambience/creepy_wind_loop.flac.
+      expect(search(db, query('-amb')).total).toBe(5);
+    });
+
+    it('excludes a file matching any one of several excluded words', () => {
+      expect(names('-combat -ui -scifi')).toEqual(['creepy_wind_loop.flac']);
+    });
+
+    it('is case-insensitive', () => {
+      expect(search(db, query('punch -HEAVY')).total).toBe(1);
+    });
+
+    it('can exclude everything without erroring', () => {
+      expect(search(db, query('punch -punch')).total).toBe(0);
+    });
+
+    it('combines with filters', () => {
+      const result = search(db, query('-combat', { filters: { sampleRates: [48000] } }));
+      expect(result.items.map((item) => item.filename).sort()).toEqual(['click.ogg', 'computer_beep.mp3']);
+    });
+
+    it('applies to facet counts as well as results', () => {
+      const facets = getFacets(db, query('-combat'));
+      expect(facets.extensions['.wav'] ?? 0).toBe(0);
+      expect(facets.extensions['.ogg']).toBe(1);
+    });
   });
 
   describe('filters', () => {

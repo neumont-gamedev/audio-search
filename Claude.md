@@ -26,7 +26,7 @@ The user's audio never leaves their machine. No server, no account, no uploads.
 # Current status
 
 All seven originally planned phases are implemented. ~7,300 lines across `src/` and
-`tests/`. **223 tests pass; lint, both typecheck projects and the production build are
+`tests/`. **286 tests pass; lint, both typecheck projects and the production build are
 clean.**
 
 The MVP definition is fully met — a user can launch the app, add a folder, index it
@@ -39,7 +39,9 @@ folder.
 - **Indexing** — recursive scan, metadata extraction, progress reporting, incremental
   rescans, pruning of deleted files, cancellation.
 - **Search** — SQLite FTS5 over filename, relative path and folder names. Prefix matching,
-  case-insensitive, extra terms narrow. bm25 relevance ranking. Facet counts.
+  case-insensitive, extra terms narrow. A leading `-` excludes (`impact -metal`), done as
+  `f.id NOT IN (SELECT rowid FROM audio_files_fts WHERE … MATCH ?)` because FTS5's binary
+  `NOT` cannot express an exclusion-only query. bm25 relevance ranking. Facet counts.
 - **Filters** — duration buckets and custom range, file type, channels, sample rate,
   library, favorites.
 - **Preview** — one shared `<audio>` element, streamed over a custom `audio-asset://`

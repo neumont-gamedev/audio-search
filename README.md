@@ -68,7 +68,10 @@ gh release create v0.2.0 "dist/Audio Asset Browser Setup 0.2.0.exe" "dist/Audio 
    background; you can keep working while it runs, and progress shows in the status bar.
 2. **Search** (`Ctrl+F`) across filenames, folder names and relative paths. Extra words
    narrow the results, so `impact heavy body` finds
-   `Medieval Combat/Impacts/Body/impact_heavy_03.wav`.
+   `Medieval Combat/Impacts/Body/impact_heavy_03.wav`. Put `-` in front of a word to
+   **exclude** it: `impact -metal` finds impacts that aren't metal. Like ordinary words this
+   matches the start of words, so `-metal` also leaves out "metallic". A hyphen inside a
+   word (`sci-fi`) is just part of the word.
 3. **Filter** by duration, file type, channels, sample rate, library, or favorites.
 4. **Audition** with `Space`, or click a row's play button. Starting a new sound stops the
    previous one. Two toggles in the player bar speed this up:
