@@ -14,8 +14,8 @@ release has two files — pick one:
 
 | File | What it is |
 | --- | --- |
-| `Audio Asset Browser Setup <version>.exe` | Installer. Installs for your user account only (no admin rights needed) and adds a Start Menu entry. |
-| `Audio Asset Browser <version> Portable.exe` | Portable. Runs directly with nothing installed — handy for USB sticks or lab machines. Starts a little slower, because each launch unpacks itself to the Windows temp folder first. |
+| `Audio.Asset.Browser.Setup.<version>.exe` | Installer. Installs for your user account only (no admin rights needed) and adds a Start Menu entry. |
+| `Audio.Asset.Browser.<version>.Portable.exe` | Portable. Runs directly with nothing installed — handy for USB sticks or lab machines. Starts a little slower, because each launch unpacks itself to the Windows temp folder first. |
 
 The builds are not code-signed, so Windows may show **"Windows protected your PC"** the
 first time. Click **More info → Run anyway**.

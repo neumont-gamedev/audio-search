@@ -58,12 +58,16 @@ for (const file of files) {
 }
 const sizes = files.map((file) => `${(statSync(file).size / 1024 / 1024).toFixed(0)} MB`);
 
+// GitHub replaces spaces in uploaded file names with dots, so the notes must use the names
+// people will actually see in the download list.
+const asDownloaded = (name) => name.replace(/ /g, '.');
+
 const notes = `## Download
 
 Pick one:
 
-- **\`${product} Setup ${version}.exe\`** — installer. Installs for your user account only (no admin rights needed) and adds a Start Menu entry.
-- **\`${product} ${version} Portable.exe\`** — portable. Runs directly with nothing installed; handy for USB sticks or lab machines.
+- **\`${asDownloaded(`${product} Setup ${version}.exe`)}\`** — installer. Installs for your user account only (no admin rights needed) and adds a Start Menu entry.
+- **\`${asDownloaded(`${product} ${version} Portable.exe`)}\`** — portable. Runs directly with nothing installed; handy for USB sticks or lab machines.
 
 Windows only. The builds are not code-signed, so Windows may show **"Windows protected your PC"** the first time: click **More info → Run anyway**.
 
