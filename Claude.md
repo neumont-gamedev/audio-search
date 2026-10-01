@@ -29,10 +29,11 @@ The user's audio never leaves their machine. No server, no account, no uploads.
 work, ask the user what testing turned up; feedback should drive the next priorities, not
 the backlog below.
 
-The GitHub Release for 1.0.0 has **not been published yet**: `gh` was not logged in on the
-user's machine. Once it is, `npm run release:upload` uploads the already-built
-`dist/*1.0.0*.exe` files as a draft (they match commit `02b9b59`; later commits changed
-only docs and the release script).
+**1.0.0 is published** at https://github.com/neumont-gamedev/audio-search/releases/tag/v1.0.0
+(tag `v1.0.0` → commit `0a9609c`; the binaries were built from `02b9b59`, and the commits
+between changed only docs and the release script). The repository is public; testers
+download from `/releases/latest`. The next release needs a version bump first — the
+release script refuses to reuse a version.
 
 All seven originally planned phases are implemented, plus the post-MVP features below.
 ~9,700 lines across `src/` and `tests/`. **286 tests pass; lint, both typecheck projects
