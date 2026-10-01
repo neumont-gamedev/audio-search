@@ -25,9 +25,18 @@ The user's audio never leaves their machine. No server, no account, no uploads.
 
 # Current status
 
-All seven originally planned phases are implemented. ~7,300 lines across `src/` and
-`tests/`. **286 tests pass; lint, both typecheck projects and the production build are
-clean.**
+**Version 1.0.0. Development paused on 2026-09-30 for user testing.** Before starting new
+work, ask the user what testing turned up; feedback should drive the next priorities, not
+the backlog below.
+
+The GitHub Release for 1.0.0 has **not been published yet**: `gh` was not logged in on the
+user's machine. Once it is, `npm run release:upload` uploads the already-built
+`dist/*1.0.0*.exe` files as a draft (they match commit `02b9b59`; later commits changed
+only docs and the release script).
+
+All seven originally planned phases are implemented, plus the post-MVP features below.
+~9,700 lines across `src/` and `tests/`. **286 tests pass; lint, both typecheck projects
+and the production build are clean.**
 
 The MVP definition is fully met — a user can launch the app, add a folder, index it
 recursively, reopen without rebuilding the index, search by filename/path, filter by
@@ -49,6 +58,17 @@ folder.
   each row reached; Shift-extend and mouse clicks never auto-play, because double-click and
   the row play button already toggle and would stop what a click started) and **Loop**.
   Both persist in `localStorage`; volume deliberately does not and always starts at 100%.
+- **Waveforms** — drawn in the player bar (not in result rows), doubling as the progress
+  bar; click to seek. Generated on first play, never at startup, by decoding in the
+  renderer with Web Audio, and cached in `audio_files.waveform` (format: `WAVEFORM_BUCKETS`
+  in shared constants). An upsert clears the cache, so a changed file regenerates. Bytes
+  reach the renderer through `file:readAudioData` (id-keyed, capped at
+  `MAX_WAVEFORM_SOURCE_BYTES`) — the CSP still blocks `fetch` of `audio-asset:`,
+  deliberately.
+- **Audio protocol** — serves files itself with `Content-Length` and byte ranges (206).
+  Before this, `net.fetch(file://)` gave MP3/OGG/M4A infinite duration and broken seeking.
+- **Mac junk files** — `__MACOSX` folders and AppleDouble `._*` files are never indexed.
+  Scanner and watcher share one rule (`isIgnoredPath` in shared constants).
 - **Window state** — size, position and maximized state saved to
   `userData/window-state.json` on close; restored only if it overlaps a connected monitor,
   otherwise the default centered window. Logic in `src/main/windowState.ts` is pure and
@@ -73,23 +93,42 @@ folder.
 1. **Tags are half-built.** Schema, IPC handlers and preload surface all exist
    (`listTags`, `addTag`, `removeTag`) but **nothing in the renderer calls them**. This is
    dead surface. Either build the UI or remove the IPC — do not leave it dangling.
-2. **The file watcher has no test coverage at all.** `src/main/filesystem/watcher.ts` was
-   never verified end to end. It is the most failure-prone kind of code in the repo
-   (stateful, debounced, racy, platform-dependent). Trust it least.
+2. **The file watcher has almost no test coverage.** Only its ignore rule is tested (via
+   `isIgnoredPath`); `src/main/filesystem/watcher.ts` itself was never verified end to end.
+   It is the most failure-prone kind of code in the repo (stateful, debounced, racy,
+   platform-dependent). Trust it least.
 3. **No scale validation.** The architecture is justified by "assume 100k files" but has
    only ever run against a handful. Cold scan time, rescan time, query latency, facet cost
    (two extra `GROUP BY`s per fresh query — likely the first thing to hurt) and scroll
    smoothness are all unmeasured. Generating a synthetic 50–100k library is cheap and its
    results could redirect other work.
-4. **Waveforms are drawn only in the player bar**, not in result rows. They are generated
-   on first play (never at startup) by decoding in the renderer with Web Audio, and cached
-   in `audio_files.waveform` (format: `WAVEFORM_BUCKETS` in shared constants). An upsert
-   clears the cache, so a changed file regenerates. Bytes reach the renderer through
-   `file:readAudioData` (id-keyed, capped at `MAX_WAVEFORM_SOURCE_BYTES`) — the CSP still
-   blocks `fetch` of `audio-asset:`, deliberately.
-5. **Semantic/AI search is not started, by design.** Migration 2 reserves nullable
+4. **Formats only partly verified in a real window.** Waveforms, duration and seeking were
+   checked with WAV and MP3. OGG, FLAC and M4A go through the same code paths but were
+   never played in the app; no test files of those formats were available.
+5. **Small unverified details.** The keyboard focus ring on the hand-drawn volume knob
+   (`.volume input:focus-visible::-webkit-slider-thumb`) is in the CSS but was never seen
+   on screen; the check hung.
+6. **Semantic/AI search is not started, by design.** Migration 2 reserves nullable
    `ai_description`, `ai_tags` and `embedding` columns so it can be added without a
    rewrite. The core app must keep working fully offline with no AI service.
+
+## Backlog — discussed with the user, deferred until after user testing
+
+Not commitments; re-rank them against what testing shows.
+
+- **Music / SFX category.** A `category` column on `libraries` (new migration), chosen when
+  adding a library, plus a Music | SFX | All toggle that filters by category across all
+  libraries of that type. Agreed approach: user sets it per library; do not guess from
+  folder names or duration.
+- **Click a folder name to filter to that folder**, to see a sound's variation set
+  (`impact_01` … `impact_08`) together.
+- **Pitch / speed preview** — playbackRate with `preservesPitch = false`; preview only,
+  never modifying files.
+- **Tags UI**, or removing the dead tag IPC (see known gap 1).
+- **Store data next to the portable `.exe`** — only together with library paths relative
+  to the `.exe`; see Distribution. Not wanted unless app and sounds ship on one stick.
+- Considered and rejected for now: AI/semantic search, audio editing or trimming,
+  auto-update (needs code signing).
 
 ---
 

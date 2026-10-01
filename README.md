@@ -95,7 +95,7 @@ missing. Variants: `npm run release -- --publish` publishes immediately;
    first.
 6. **Select the assets** you want: click, `Shift`+click for a run, `Ctrl`+click to add or
    remove one, `Ctrl+A` for everything loaded.
-7. **Right-click → Copy _N_ files to _<destination>_**, or press `Ctrl+Shift+C`. If any
+7. **Right-click → Copy _N_ files to _(your destination)_**, or press `Ctrl+Shift+C`. If any
    filenames already exist you are asked once, and your answer covers the whole batch.
 
 Right-clicking inside a multi-row selection acts on the whole selection; right-clicking a
@@ -122,7 +122,7 @@ original file stays in your library, even when the target folder is on the same 
 
 ## How it is put together
 
-```
+```text
 src/
   main/         Electron main process - the only code with filesystem access
     database/   SQLite schema, migrations, search queries
@@ -179,8 +179,26 @@ Tests only ever work inside temporary directories; they never touch a real asset
 
 ## Status
 
-Phases 1-7 of the plan are implemented: application shell, indexing, search, preview, the
-asset workflow, library management, and favorites. Tags exist in the schema and IPC layer
-but have no UI yet. The schema also reserves nullable columns (`ai_description`,
-`ai_tags`, `embedding`) so semantic search can be added later without a rewrite. None of
-that is required for the app to work offline.
+**Version 1.0.0**, currently in user testing. Implemented: indexing, search (including
+excluded words), filters, preview with waveforms, auto-play and loop, copying to a
+destination, drag and drop, library management, and favorites.
+
+Tags exist in the schema and IPC layer but have no UI yet. The schema also reserves
+nullable columns (`ai_description`, `ai_tags`, `embedding`) so semantic search can be added
+later without a rewrite. None of that is required for the app to work offline.
+
+## Reporting a problem
+
+If something goes wrong, the app's log is the most useful thing to send along:
+
+```text
+%APPDATA%\audio-asset-browser\logs\app.log
+```
+
+Paste that path into the Explorer address bar to open it. The log records what the app
+did (scans, copies, playback failures) and includes file paths from your library, so look
+it over before sharing. It never contains your audio.
+
+If a library seems out of date, hover over it in the sidebar and click **⟳ (Rescan)**. That
+reconciles the index with what is on disk. **✕** removes a library from the app only; your
+files are never touched.
