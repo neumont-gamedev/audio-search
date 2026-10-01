@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actionTargets,
   applyClick,
+  defersToClick,
   EMPTY_SELECTION,
   idsBetween,
   modifierFor,
@@ -181,6 +182,33 @@ describe('reconcile', () => {
     expect(asArray(next)).toEqual([20, 30]);
     expect(next.cursorId).toBe(30);
     expect(next.anchorId).toBe(20);
+  });
+});
+
+describe('defersToClick', () => {
+  const multi = state([20, 30, 40], 30);
+
+  it('defers a plain press inside a multi-row selection, so the whole selection can be dragged', () => {
+    expect(defersToClick(multi, 30, 'replace')).toBe(true);
+    expect(defersToClick(multi, 20, 'replace')).toBe(true);
+  });
+
+  it('acts immediately on a plain press outside the selection', () => {
+    expect(defersToClick(multi, 50, 'replace')).toBe(false);
+  });
+
+  it('acts immediately when only one row is selected', () => {
+    expect(defersToClick(state([30], 30), 30, 'replace')).toBe(false);
+  });
+
+  it('never defers Ctrl or Shift clicks, which edit the selection on press', () => {
+    expect(defersToClick(multi, 30, 'toggle')).toBe(false);
+    expect(defersToClick(multi, 30, 'range')).toBe(false);
+  });
+
+  it('collapses to the pressed row once the deferred click lands', () => {
+    // What the caller does on click: an ordinary replace.
+    expect(asArray(applyClick(multi, IDS, 30, 'replace'))).toEqual([30]);
   });
 });
 

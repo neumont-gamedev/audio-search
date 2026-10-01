@@ -22,6 +22,7 @@ export const IPC = {
   copyFileToClipboard: 'file:copyToClipboard',
   copyToDestination: 'file:copyToDestination',
   getPlaybackUrl: 'file:playbackUrl',
+  startDrag: 'file:startDrag',
 
   listDestinations: 'destination:list',
   addDestination: 'destination:add',

@@ -145,19 +145,23 @@ export function validateCopyRequest(value: unknown): CopyRequest {
     throw new ValidationError('strategy must be cancel, overwrite or rename');
   }
 
-  if (!Array.isArray(raw.fileIds)) throw new ValidationError('fileIds must be an array');
-  if (raw.fileIds.length === 0) throw new ValidationError('fileIds must not be empty');
-  if (raw.fileIds.length > MAX_COPY_BATCH) {
-    throw new ValidationError(`fileIds must contain at most ${MAX_COPY_BATCH} entries`);
-  }
-
-  // De-duplicated so the same asset cannot be copied twice in one request, which would
-  // otherwise produce a spurious name_2 collision against itself.
-  const fileIds = [...new Set(raw.fileIds.map((id) => requireId(id, 'fileId')))];
-
   return {
-    fileIds,
+    fileIds: requireFileIds(raw.fileIds),
     destinationPath: requireString(raw.destinationPath, 'destinationPath'),
     strategy,
   };
+}
+
+/**
+ * A non-empty, bounded list of file ids, de-duplicated so the same asset cannot be acted
+ * on twice in one request (for a copy that would be a spurious name_2 collision against
+ * itself; for a drag, the same file listed twice).
+ */
+export function requireFileIds(value: unknown): number[] {
+  if (!Array.isArray(value)) throw new ValidationError('fileIds must be an array');
+  if (value.length === 0) throw new ValidationError('fileIds must not be empty');
+  if (value.length > MAX_COPY_BATCH) {
+    throw new ValidationError(`fileIds must contain at most ${MAX_COPY_BATCH} entries`);
+  }
+  return [...new Set(value.map((id) => requireId(id, 'fileId')))];
 }

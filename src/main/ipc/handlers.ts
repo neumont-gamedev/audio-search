@@ -1,12 +1,14 @@
 import type { Database } from 'better-sqlite3';
-import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron';
+import { BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell, type NativeImage } from 'electron';
 import { stat } from 'node:fs/promises';
+import appIcon from '../../../build/icon.png?asset';
 import { AUDIO_PROTOCOL } from '../../shared/constants';
 import type {
   AppError,
   AudioFile,
   CopyResult,
   Destination,
+  DragResult,
   FacetCounts,
   IpcResponse,
   Library,
@@ -37,6 +39,7 @@ import type { Indexer } from '../indexing/indexer';
 import { createLogger } from '../logger';
 import { EVENTS, IPC } from './channels';
 import {
+  requireFileIds,
   requireId,
   requireString,
   validateCopyRequest,
@@ -87,6 +90,14 @@ function handle<T>(channel: string, fn: (...args: unknown[]) => Promise<T> | T):
       return { ok: false, error: toAppError(error) };
     }
   });
+}
+
+let cachedDragIcon: NativeImage | null = null;
+
+/** The image under the cursor while dragging: the app icon, small. Built once. */
+function dragIcon(): NativeImage {
+  cachedDragIcon ??= nativeImage.createFromPath(appIcon).resize({ width: 32, height: 32 });
+  return cachedDragIcon;
 }
 
 /** Resolves an indexed file by id, or throws a not-found error the renderer can show. */
@@ -281,6 +292,41 @@ export function registerHandlers(context: HandlerContext): void {
     }
 
     return outcome;
+  });
+
+  handle<DragResult>(IPC.startDrag, async (rawIds) => {
+    const fileIds = requireFileIds(rawIds);
+    const window = getWindow();
+    if (!window || window.isDestroyed()) throw new ValidationError('The window is not available.');
+
+    // Paths come from the index, never from the renderer. Files deleted since the search
+    // are left out rather than failing the whole drag.
+    const indexed = fileIds
+      .map((id) => getFileById(db, id)?.absolutePath)
+      .filter((path): path is string => path !== undefined);
+    const onDisk = (
+      await Promise.all(
+        indexed.map((path) =>
+          stat(path).then(
+            (info) => (info.isFile() ? path : null),
+            () => null,
+          ),
+        ),
+      )
+    ).filter((path): path is string => path !== null);
+
+    if (onDisk.length === 0) {
+      throw new ValidationError(
+        fileIds.length === 1 ? 'That file is no longer on disk.' : 'None of those files are on disk any more.',
+      );
+    }
+
+    const native = onDisk.map((path) => (process.platform === 'win32' ? path.replace(/\//g, '\\') : path));
+    // Electron offers the drop target copy and link only, never move, so dropping into a
+    // folder on the same drive copies the asset rather than taking it out of the library.
+    window.webContents.startDrag({ file: native[0], files: native, icon: dragIcon() });
+
+    return { dragged: onDisk.length, missing: fileIds.length - onDisk.length };
   });
 
   handle<string>(IPC.getPlaybackUrl, (rawId) => {

@@ -89,6 +89,11 @@ gh release create v0.2.0 "dist/Audio Asset Browser Setup 0.2.0.exe" "dist/Audio 
 Right-clicking inside a multi-row selection acts on the whole selection; right-clicking a
 row outside it selects just that row first.
 
+**Drag and drop:** drag rows straight out of the results into Explorer, a Unity / Unreal /
+Godot project, or a DAW. Dragging a row inside a multi-row selection takes the whole
+selection; dragging any other row takes just that one. Dropping always **copies**: your
+original file stays in your library, even when the target folder is on the same drive.
+
 ### Keyboard
 
 | Key | Action |

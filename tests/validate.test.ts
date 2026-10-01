@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  requireFileIds,
   requireId,
   requireString,
   validateCopyRequest,
@@ -122,6 +123,28 @@ describe('validateSearchQuery', () => {
 
   it('rejects an over-long search string', () => {
     expect(() => validateSearchQuery({ text: 'x'.repeat(5000) })).toThrow(ValidationError);
+  });
+});
+
+describe('requireFileIds', () => {
+  it('accepts ids and removes duplicates, keeping first-seen order', () => {
+    expect(requireFileIds([5, 2, 5, 9, 2])).toEqual([5, 2, 9]);
+  });
+
+  it.each([
+    ['not an array', 'nope'],
+    ['empty', []],
+    ['a non-integer id', [1, 2.5]],
+    ['a negative id', [1, -3]],
+    ['a string id', [1, '2']],
+    ['a path smuggled in', ['C:/Windows/System32/cmd.exe']],
+  ])('rejects %s', (_label, value) => {
+    expect(() => requireFileIds(value)).toThrow(ValidationError);
+  });
+
+  it('rejects an oversized batch', () => {
+    const ids = Array.from({ length: 2001 }, (_, i) => i + 1);
+    expect(() => requireFileIds(ids)).toThrow(/at most/);
   });
 });
 

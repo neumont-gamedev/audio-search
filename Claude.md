@@ -54,7 +54,13 @@ folder.
 - **Asset workflow** — reveal in folder, copy path, copy file, single and multi-file copy
   into a chosen destination with duplicate handling.
 - **Multi-select** — click, `Shift`+click range, `Ctrl`+click toggle, `Ctrl+A`,
-  `Shift`+arrows.
+  `Shift`+arrows. A plain press inside a multi-selection defers its collapse to the click
+  (`defersToClick`), so the press can start a drag of the whole selection.
+- **Drag out** — rows drag into Explorer / engines / DAWs as real files. The renderer sends
+  ids; `file:startDrag` resolves paths from the index, drops files missing on disk, and
+  calls `webContents.startDrag`. **Verified with a real OS drag: dropping into a folder on
+  the same volume copies, never moves** (Electron offers copy/link only). Re-verify that if
+  Electron is upgraded — it is the property that protects the user's library.
 - **Destinations** — a self-pruning most-recently-used list of 10 folders.
 - **Library management** — multiple libraries, rescan, removal (index only), chokidar
   watching, unavailable-drive handling.
@@ -307,6 +313,13 @@ process's `before-input-event`**, so they cannot test main-process shortcuts. La
 Your manually launched instance will collide with a running `npm run dev` on the
 single-instance lock; pass `--user-data-dir=<temp dir>` to get a separate lock and an empty
 index, then add a temp library with `audioLibrary.addLibrary(path)` from the page.
+
+Testing drag-out: to check which files a drag carries, replace `webContents.startDrag` with a
+recorder from the main-process inspector and dispatch a `DragEvent('dragstart')` on a row —
+no mouse needed. Testing the drop itself needs a real OS drag (and the user's consent, since
+it moves their cursor): use `mouse_event` with `MOVE|ABSOLUTE` — OLE's drag loop ignores
+`SetCursorPos` — call `SetProcessDPIAware` first, and aim at Explorer's file list, not the
+navigation-pane divider, which rejects drops. Use throwaway files on one volume only.
 
 Tests must only ever use temporary directories (`tests/helpers.ts`). **Never write a test
 that touches a real asset library.**

@@ -6,6 +6,7 @@ import type {
   CopyRequest,
   CopyResult,
   Destination,
+  DragResult,
   FacetCounts,
   IpcResponse,
   Library,
@@ -58,6 +59,7 @@ const api: AudioLibraryApi = {
   removeTag: (fileId, tagId) => invoke<void>(IPC.removeTag, fileId, tagId),
 
   getPlaybackUrl: (fileId) => invoke<string>(IPC.getPlaybackUrl, fileId),
+  startDrag: (fileIds) => invoke<DragResult>(IPC.startDrag, fileIds),
 
   onScanProgress: (listener) => subscribe<ScanProgress>(EVENTS.scanProgress, listener),
   onLibrariesChanged: (listener) => subscribe<void>(EVENTS.librariesChanged, () => listener()),

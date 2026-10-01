@@ -17,6 +17,7 @@ import { api, errorMessage, unwrap } from './services/api';
 import {
   actionTargets,
   applyClick,
+  defersToClick,
   EMPTY_SELECTION,
   modifierFor,
   moveCursor,
@@ -105,9 +106,28 @@ export function App() {
     if (activeDestinationId !== null && !activeDestination) setActiveDestinationId(null);
   }, [activeDestinationId, activeDestination]);
 
+  // The row a plain press landed on inside a multi-selection: its collapse waits for the
+  // click, and is cancelled if the press turns into a drag. See defersToClick.
+  const deferredClickRef = useRef<number | null>(null);
+
   const handleRowSelect = useCallback(
     (file: AudioFile, event: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => {
-      setSelection((previous) => applyClick(previous, ids, file.id, modifierFor(event)));
+      const modifier = modifierFor(event);
+      if (defersToClick(selectionRef.current, file.id, modifier)) {
+        deferredClickRef.current = file.id;
+        return;
+      }
+      deferredClickRef.current = null;
+      setSelection((previous) => applyClick(previous, ids, file.id, modifier));
+    },
+    [ids],
+  );
+
+  const handleRowClick = useCallback(
+    (file: AudioFile) => {
+      if (deferredClickRef.current !== file.id) return;
+      deferredClickRef.current = null;
+      setSelection((previous) => applyClick(previous, ids, file.id, 'replace'));
     },
     [ids],
   );
@@ -187,6 +207,45 @@ export function App() {
       }),
     [withFeedback, toasts],
   );
+
+  /**
+   * Drags files out to Explorer, a game engine or a DAW. Dragging a row inside a
+   * multi-selection carries the whole selection, as right-click does; dragging any other
+   * row carries just that row and selects it.
+   */
+  const dragOut = useCallback(
+    (file: AudioFile) => {
+      deferredClickRef.current = null;
+      const current = selectionRef.current;
+      if (!current.selected.has(file.id)) {
+        setSelection((previous) => applyClick(previous, ids, file.id, 'replace'));
+      }
+      const fileIds = actionTargets(current, file.id);
+      void withFeedback(async () => {
+        const result = await unwrap(api.startDrag(fileIds));
+        if (result.missing > 0) {
+          toasts.info(
+            `${result.missing} ${result.missing === 1 ? 'file is' : 'files are'} no longer on disk ` +
+              `and ${result.missing === 1 ? 'was' : 'were'} left out. Rescan the library to tidy the index.`,
+          );
+        }
+      });
+    },
+    [ids, withFeedback, toasts],
+  );
+
+  // Files dropped onto the app window would otherwise make Chromium try to open them as a
+  // page (the main process blocks the navigation, but the drop should be a no-op from the
+  // start). This includes the app's own rows dragged out and released back over it.
+  useEffect(() => {
+    const swallow = (event: DragEvent) => event.preventDefault();
+    window.addEventListener('dragover', swallow);
+    window.addEventListener('drop', swallow);
+    return () => {
+      window.removeEventListener('dragover', swallow);
+      window.removeEventListener('drop', swallow);
+    };
+  }, []);
 
   /**
    * Copies files to a folder, pausing on collisions so the user can decide once for the
@@ -430,6 +489,8 @@ export function App() {
           hasLibraries={libraries.libraries.length > 0}
           onSort={search.toggleSort}
           onSelect={handleRowSelect}
+          onRowClick={handleRowClick}
+          onDragOut={dragOut}
           onActivate={(file) => player.toggle(file)}
           onContextMenu={(file, x, y) => setMenuTarget({ file, x, y })}
           onToggleFavorite={toggleFavorite}

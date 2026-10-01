@@ -109,6 +109,13 @@ export interface CopyResult {
   cancelled: number;
 }
 
+export interface DragResult {
+  /** Files handed to the OS drag. */
+  dragged: number;
+  /** Indexed files left out because they are no longer on disk. */
+  missing: number;
+}
+
 export interface AppError {
   code:
     | 'INVALID_ARGUMENT'
@@ -162,6 +169,11 @@ export interface AudioLibraryApi {
 
   /** Resolves the playable custom-protocol URL for an indexed asset. */
   getPlaybackUrl(fileId: number): Promise<IpcResponse<string>>;
+  /**
+   * Starts a native OS drag of these indexed files, for dropping into Explorer, a game
+   * engine or a DAW. Call from a `dragstart` handler while the mouse button is still down.
+   */
+  startDrag(fileIds: number[]): Promise<IpcResponse<DragResult>>;
 
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   onLibrariesChanged(listener: () => void): () => void;

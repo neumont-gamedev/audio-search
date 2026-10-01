@@ -35,6 +35,23 @@ export function modifierFor(event: {
   return 'replace';
 }
 
+/**
+ * Whether a mouse press must wait for the click (button released without dragging) before
+ * changing the selection.
+ *
+ * A plain press on a row already inside a multi-row selection might be the start of
+ * dragging that whole selection out of the app, so collapsing to the one row on press would
+ * make multi-file drags impossible. File managers resolve this the same way: the collapse
+ * happens on release, and only if no drag began.
+ */
+export function defersToClick(
+  state: SelectionState,
+  id: number,
+  modifier: ClickModifier,
+): boolean {
+  return modifier === 'replace' && state.selected.has(id) && state.selected.size > 1;
+}
+
 /** The ids between two positions in the list, in either direction, inclusive. */
 export function idsBetween(ids: readonly number[], fromIndex: number, toIndex: number): number[] {
   const start = Math.max(0, Math.min(fromIndex, toIndex));

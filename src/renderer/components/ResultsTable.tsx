@@ -23,7 +23,12 @@ interface Props {
   sortDirection: SortDirection;
   hasLibraries: boolean;
   onSort: (field: SortField) => void;
+  /** Mouse press on a row: selects, unless the selection change is deferred to the click. */
   onSelect: (file: AudioFile, event: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => void;
+  /** Button released over the row without a drag having started. */
+  onRowClick: (file: AudioFile) => void;
+  /** A drag began on the row; the parent hands the files to a native OS drag. */
+  onDragOut: (file: AudioFile) => void;
   onActivate: (file: AudioFile) => void;
   onContextMenu: (file: AudioFile, x: number, y: number) => void;
   onToggleFavorite: (file: AudioFile) => void;
@@ -69,6 +74,8 @@ export function ResultsTable(props: Props) {
     hasLibraries,
     onSort,
     onSelect,
+    onRowClick,
+    onDragOut,
     onActivate,
     onContextMenu,
     onToggleFavorite,
@@ -159,6 +166,14 @@ export function ResultsTable(props: Props) {
                     scrollRef.current?.focus({ preventScroll: true });
                   }
                   onSelect(file, event);
+                }}
+                onClick={() => onRowClick(file)}
+                draggable
+                onDragStart={(event) => {
+                  // The browser's own drag would carry a URL or text, not files; replace it
+                  // with a native file drag started by the main process.
+                  event.preventDefault();
+                  onDragOut(file);
                 }}
                 onDoubleClick={() => onActivate(file)}
                 onContextMenu={(event) => {
