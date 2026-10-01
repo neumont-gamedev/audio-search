@@ -4,14 +4,16 @@ import { formatClock } from '../services/format';
 
 interface Props {
   player: UseAudioPlayer;
+  autoPlay: boolean;
+  onToggleAutoPlay: () => void;
 }
 
 /**
  * Transport for the current preview. Kept as a persistent bar rather than a separate
  * window so auditioning never costs a click to open or close.
  */
-export function PlayerBar({ player }: Props) {
-  const { filename, playing, position, duration, volume } = player;
+export function PlayerBar({ player, autoPlay, onToggleAutoPlay }: Props) {
+  const { filename, playing, position, duration, volume, loop } = player;
   const progress = duration > 0 ? Math.min(position / duration, 1) : 0;
 
   const scrub = (event: MouseEvent<HTMLDivElement>) => {
@@ -23,7 +25,8 @@ export function PlayerBar({ player }: Props) {
 
   return (
     <div className="player">
-      <div className="transport">
+      {/* Like the mode buttons below, transport buttons never take focus from a click. */}
+      <div className="transport" onMouseDown={(event) => event.preventDefault()}>
         <button
           onClick={() => (playing ? player.pause() : player.resume())}
           disabled={!filename}
@@ -33,6 +36,29 @@ export function PlayerBar({ player }: Props) {
         </button>
         <button onClick={player.stop} disabled={!filename} title="Stop">
           ■
+        </button>
+      </div>
+
+      {/* Mode buttons never take focus: Space and Enter must keep auditioning the focused
+          row rather than re-pressing whichever toggle was clicked last. */}
+      <div className="modes" onMouseDown={(event) => event.preventDefault()}>
+        <button
+          aria-pressed={autoPlay}
+          onClick={onToggleAutoPlay}
+          title={
+            autoPlay
+              ? 'Auto-play is on: arrow keys play each sound as you reach it'
+              : 'Auto-play: play each sound as you move to it with the arrow keys'
+          }
+        >
+          Auto
+        </button>
+        <button
+          aria-pressed={loop}
+          onClick={() => player.setLoop(!loop)}
+          title={loop ? 'Loop is on: sounds repeat until stopped' : 'Loop: repeat sounds until stopped'}
+        >
+          Loop
         </button>
       </div>
 

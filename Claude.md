@@ -26,7 +26,7 @@ The user's audio never leaves their machine. No server, no account, no uploads.
 # Current status
 
 All seven originally planned phases are implemented. ~7,300 lines across `src/` and
-`tests/`. **194 tests pass; lint, both typecheck projects and the production build are
+`tests/`. **223 tests pass; lint, both typecheck projects and the production build are
 clean.**
 
 The MVP definition is fully met — a user can launch the app, add a folder, index it
@@ -43,7 +43,14 @@ folder.
 - **Filters** — duration buckets and custom range, file type, channels, sample rate,
   library, favorites.
 - **Preview** — one shared `<audio>` element, streamed over a custom `audio-asset://`
-  protocol. Play/pause/stop/seek/volume, keyboard auditioning.
+  protocol. Play/pause/stop/seek/volume, keyboard auditioning. **Auto** (arrow keys play
+  each row reached; Shift-extend and mouse clicks never auto-play, because double-click and
+  the row play button already toggle and would stop what a click started) and **Loop**.
+  Both persist in `localStorage`; volume deliberately does not and always starts at 100%.
+- **Window state** — size, position and maximized state saved to
+  `userData/window-state.json` on close; restored only if it overlaps a connected monitor,
+  otherwise the default centered window. Logic in `src/main/windowState.ts` is pure and
+  unit-tested.
 - **Asset workflow** — reveal in folder, copy path, copy file, single and multi-file copy
   into a chosen destination with duplicate handling.
 - **Multi-select** — click, `Shift`+click range, `Ctrl`+click toggle, `Ctrl+A`,
@@ -99,8 +106,10 @@ never commit built binaries. The release tag is `v<version>` and must match `"ve
 - Builds are **unsigned**; users see a SmartScreen warning. Say so in release notes.
 - The app icon is `build/icon.ico` (16–256 px, multi-size) plus `build/icon.png` (512 px),
   both generated from `audio-search-icon.png` with transparent margins trimmed.
-  electron-builder picks them up from `build/` by convention — no config entry. The
-  packaged window/taskbar icon comes from the `.exe`; `npm run dev` still shows Electron's.
+  electron-builder picks them up from `build/` by convention — no config entry. The window
+  icon is set explicitly in `main.ts` via an electron-vite `?asset` import of
+  `build/icon.png` (typed by `src/main/env.d.ts`), so `npm run dev` shows it too rather
+  than Electron's.
 - The portable build unpacks to `%LOCALAPPDATA%\Temp\<random>\` on each launch and deletes
   it on a clean exit. A force-killed portable app leaves ~270 MB behind there.
 - Both builds store data in `%APPDATA%\audio-asset-browser` (Electron `userData`), not
@@ -207,6 +216,7 @@ src/
   main/                  the only code with filesystem access
     main.ts              lifecycle, window, security handlers
     logger.ts            scoped logging to userData/logs/app.log
+    windowState.ts       save/restore window bounds, fitted to connected monitors
     database/
       db.ts              connection, pragmas, migration runner
       migrations.ts      ordered schema migrations (at v3)
@@ -240,6 +250,11 @@ src/
 ```
 
 ## Key invariants
+
+- **No application menu.** `Menu.setApplicationMenu(null)` removes Electron's default
+  File/Edit/View/Window/Help bar. Unpackaged runs restore `Ctrl+R` and
+  `F12`/`Ctrl+Shift+I` through `before-input-event`; packaged builds offer neither.
+  Clipboard keys in text inputs still work natively on Windows.
 
 - **The database is an index, not the source of truth.** The filesystem is authoritative.
   Rescanning reconciles. "Rescan Library" is always available as a reliable fallback,
@@ -284,6 +299,14 @@ Two gotchas when driving it: React batches state updates, so `sleep` between a c
 dependent keypress (a real user cannot do both in one microtask); and the renderer cannot
 read the clipboard without window focus, so verify clipboard writes with
 `powershell -NoProfile -Command Get-Clipboard`.
+
+More gotchas: keys sent with CDP `Input.dispatchKeyEvent` **do not reach the main
+process's `before-input-event`**, so they cannot test main-process shortcuts. Launch with
+`--inspect=9229` as well and evaluate in the main process with
+`includeCommandLineAPI: true` (that is what makes `require('electron')` available).
+Your manually launched instance will collide with a running `npm run dev` on the
+single-instance lock; pass `--user-data-dir=<temp dir>` to get a separate lock and an empty
+index, then add a temp library with `audioLibrary.addLibrary(path)` from the page.
 
 Tests must only ever use temporary directories (`tests/helpers.ts`). **Never write a test
 that touches a real asset library.**

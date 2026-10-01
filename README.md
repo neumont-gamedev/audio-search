@@ -71,7 +71,13 @@ gh release create v0.2.0 "dist/Audio Asset Browser Setup 0.2.0.exe" "dist/Audio 
    `Medieval Combat/Impacts/Body/impact_heavy_03.wav`.
 3. **Filter** by duration, file type, channels, sample rate, library, or favorites.
 4. **Audition** with `Space`, or click a row's play button. Starting a new sound stops the
-   previous one.
+   previous one. Two toggles in the player bar speed this up:
+   - **Auto** plays each sound as you move to it with the arrow keys or Page Up/Down, so you
+     can run down a list hearing every sound without pressing `Space` each time.
+     (`Shift`+arrows only extend the selection; they never auto-play.)
+   - **Loop** repeats sounds until you stop them, for checking ambiences and loop points.
+
+   Both toggles are remembered between launches. Volume always starts at 100%.
 5. **Set a destination** once in the **Copy to** box in the toolbar. "Browse for folder…"
    picks a new one; folders you have already used are listed underneath, most recent
    first.

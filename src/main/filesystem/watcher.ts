@@ -1,7 +1,8 @@
 import type { Database } from 'better-sqlite3';
 import chokidar, { type FSWatcher } from 'chokidar';
 import { stat } from 'node:fs/promises';
-import { isSupportedExtension } from '../../shared/constants';
+import { relative } from 'node:path';
+import { isIgnoredPath, isSupportedExtension } from '../../shared/constants';
 import type { Library } from '../../shared/types';
 import { readAudioMetadata } from '../audio/metadata';
 import { IndexWriter, removeFileByPath } from '../database/audioFiles';
@@ -38,7 +39,7 @@ export class LibraryWatcher {
       // The initial scan already covered existing files; only react to changes from here.
       awaitWriteFinish: { stabilityThreshold: 400, pollInterval: 100 },
       depth: 64,
-      ignored: (path: string) => /(^|[\\/])(node_modules|\.git|\$RECYCLE\.BIN)([\\/]|$)/i.test(path),
+      ignored: (path: string) => isIgnoredPath(relative(library.path, path)),
     });
 
     watcher

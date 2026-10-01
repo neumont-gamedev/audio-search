@@ -146,7 +146,20 @@ export function ResultsTable(props: Props) {
                   .filter(Boolean)
                   .join(' ')}
                 style={{ height: ROW_HEIGHT, transform: `translateY(${virtualRow.start}px)` }}
-                onMouseDown={(event) => onSelect(file, event)}
+                onMouseDown={(event) => {
+                  // Right-button mousedown fires before contextmenu; selecting here would
+                  // collapse a multi-row selection before the menu could act on it.
+                  // onContextMenu below owns right-click selection.
+                  if (event.button !== 0) return;
+                  // The play and star buttons are mouse targets only. Left to the browser
+                  // they keep focus, and the next keypress draws a focus ring around them;
+                  // the list itself takes focus instead, exactly as clicking the row does.
+                  if ((event.target as HTMLElement).closest('button')) {
+                    event.preventDefault();
+                    scrollRef.current?.focus({ preventScroll: true });
+                  }
+                  onSelect(file, event);
+                }}
                 onDoubleClick={() => onActivate(file)}
                 onContextMenu={(event) => {
                   event.preventDefault();

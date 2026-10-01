@@ -1,6 +1,6 @@
 import { opendir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { IGNORED_DIRECTORIES, isSupportedExtension } from '../../shared/constants';
+import { isIgnoredDirectory, isIgnoredFile, isSupportedExtension } from '../../shared/constants';
 import { createLogger } from '../logger';
 import { normalizePath, pathComparisonKey, splitFilename } from './pathUtils';
 
@@ -77,7 +77,7 @@ export async function scanDirectory(
         const childPath = normalizePath(join(directory, entry.name));
 
         if (entry.isDirectory()) {
-          if (IGNORED_DIRECTORIES.has(entry.name)) continue;
+          if (isIgnoredDirectory(entry.name)) continue;
           await walk(childPath, depth + 1);
           continue;
         }
@@ -87,7 +87,7 @@ export async function scanDirectory(
           try {
             const target = await stat(childPath);
             if (target.isDirectory()) {
-              if (!IGNORED_DIRECTORIES.has(entry.name)) await walk(childPath, depth + 1);
+              if (!isIgnoredDirectory(entry.name)) await walk(childPath, depth + 1);
               continue;
             }
             if (!target.isFile()) continue;
@@ -102,7 +102,7 @@ export async function scanDirectory(
         if (!entry.isFile()) continue;
 
         const { ext } = splitFilename(entry.name);
-        if (!isSupportedExtension(ext)) continue;
+        if (!isSupportedExtension(ext) || isIgnoredFile(entry.name)) continue;
 
         try {
           const info = await stat(childPath);
@@ -118,7 +118,7 @@ export async function scanDirectory(
 
   const collect = (absolutePath: string, filename: string, size: number, mtimeMs: number) => {
     const { ext } = splitFilename(filename);
-    if (!isSupportedExtension(ext)) return;
+    if (!isSupportedExtension(ext) || isIgnoredFile(filename)) return;
 
     const file: DiscoveredFile = {
       absolutePath,

@@ -67,6 +67,13 @@ button:disabled {
   cursor: default;
 }
 
+/* Keyboard (Tab) focus uses the app accent rather than Chromium's default ring, which on
+   Windows takes the system accent colour and can be any colour at all. */
+button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
 button.primary {
   background: var(--accent-dim);
   border-color: var(--accent);
@@ -363,6 +370,12 @@ input:focus {
   min-height: 0;
 }
 
+/* The list takes focus so it receives keys, but the cursor row already shows where the
+   keyboard is; a ring around the whole table would only add noise. */
+.results-scroll:focus {
+  outline: none;
+}
+
 .result-row {
   height: var(--row-height);
   cursor: default;
@@ -495,6 +508,24 @@ input:focus {
   padding: 0;
   display: grid;
   place-items: center;
+}
+
+.player .modes {
+  display: flex;
+  gap: 3px;
+}
+
+.player .modes button {
+  height: 24px;
+  padding: 0 7px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.player .modes button[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--accent-dim);
+  border-color: var(--accent);
 }
 
 .player .now-playing {

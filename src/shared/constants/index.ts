@@ -7,15 +7,39 @@ export function isSupportedExtension(ext: string): boolean {
   return (SUPPORTED_EXTENSIONS as readonly string[]).includes(ext.toLowerCase());
 }
 
-/** Directories that never contain user audio assets worth indexing. */
-export const IGNORED_DIRECTORIES = new Set([
-  '.git',
-  '.svn',
-  '.hg',
-  'node_modules',
-  '$RECYCLE.BIN',
-  'System Volume Information',
-]);
+/**
+ * Directories that never contain user audio assets worth indexing, lower-cased. Matching is
+ * case-insensitive because Windows names vary (`$RECYCLE.BIN` vs `$Recycle.Bin`).
+ * `__MACOSX` is added by zips made on a Mac and holds only AppleDouble metadata files.
+ */
+const IGNORED_DIRECTORIES = new Set(
+  ['.git', '.svn', '.hg', 'node_modules', '$RECYCLE.BIN', 'System Volume Information', '__MACOSX'].map(
+    (name) => name.toLowerCase(),
+  ),
+);
+
+export function isIgnoredDirectory(name: string): boolean {
+  return IGNORED_DIRECTORIES.has(name.toLowerCase());
+}
+
+/**
+ * macOS AppleDouble companions (`._impact.wav`) carry Finder metadata, not audio, despite the
+ * extension. They appear inside `__MACOSX` and wherever a Mac has copied files onto a
+ * non-Apple filesystem such as a USB stick.
+ */
+export function isIgnoredFile(name: string): boolean {
+  return name.startsWith('._');
+}
+
+/**
+ * The single ignore rule shared by the scanner and the watcher: true if any segment of the
+ * path is an ignored directory, or the final segment is an ignored file.
+ */
+export function isIgnoredPath(path: string): boolean {
+  const segments = path.split(/[\\/]/).filter(Boolean);
+  if (segments.length === 0) return false;
+  return segments.some(isIgnoredDirectory) || isIgnoredFile(segments[segments.length - 1]);
+}
 
 export const DURATION_BUCKETS = {
   under1: { label: '< 1 second', min: 0, max: 1 },

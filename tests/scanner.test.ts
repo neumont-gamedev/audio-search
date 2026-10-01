@@ -67,6 +67,28 @@ describe('scanDirectory', () => {
     expect(files[0].absolutePath).toContain('real');
   });
 
+  it('skips ignored directories case-insensitively', async () => {
+    writeFile(root, '$Recycle.Bin/S-1-5-21/deleted.wav');
+    writeFile(root, 'NODE_MODULES/pkg/sound.wav');
+    writeFile(root, 'real/sound.wav');
+
+    const files = await scanDirectory(root);
+    expect(files).toHaveLength(1);
+    expect(files[0].absolutePath).toMatch(/\/real\/sound\.wav$/);
+  });
+
+  it('skips macOS __MACOSX folders and AppleDouble ._ files', async () => {
+    writeFile(root, 'Impacts/impact.wav');
+    writeFile(root, '__MACOSX/Impacts/._impact.wav');
+    // Stray AppleDouble files appear beside the real ones when a Mac copies to a USB stick.
+    writeFile(root, 'Impacts/._impact.wav');
+    writeFile(root, '._root.wav');
+
+    const files = await scanDirectory(root);
+    expect(files).toHaveLength(1);
+    expect(files[0].absolutePath).toMatch(/\/Impacts\/impact\.wav$/);
+  });
+
   it('records size and modification time', async () => {
     const content = 'abcdefghij';
     writeFile(root, 'sized.wav', content);

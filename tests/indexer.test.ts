@@ -3,12 +3,12 @@ import { existsSync, rmSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Library, ScanProgress, SearchQuery } from '../src/shared/types';
-import { countFiles } from '../src/main/database/audioFiles';
+import { countFiles, IndexWriter } from '../src/main/database/audioFiles';
 import { createInMemoryDatabase } from '../src/main/database/db';
 import { addLibrary, getLibrary, removeLibrary } from '../src/main/database/libraries';
 import { search } from '../src/main/database/search';
 import { normalizePath } from '../src/main/filesystem/pathUtils';
-import { Indexer } from '../src/main/indexing/indexer';
+import { Indexer, toIndexRecord } from '../src/main/indexing/indexer';
 import { cleanup, makeTempDir, writeFile, writeWav } from './helpers';
 
 const BASE_QUERY: Omit<SearchQuery, 'text'> = {
@@ -149,6 +149,31 @@ describe('Indexer', () => {
       expect(countFiles(db, library.id)).toBe(1);
       expect(lastProgress().removed).toBe(1);
       expect(search(db, { ...BASE_QUERY, text: 'delete' }).total).toBe(0);
+    });
+
+    it('prunes AppleDouble rows indexed before they were ignored, leaving the files', async () => {
+      writeWav(root, 'Impacts/impact.wav', { frames: 4410 });
+      await indexer.enqueue(library);
+
+      // Simulate an index built by an older version that did not skip ._ files.
+      const stale = normalizePath(writeFile(root, '__MACOSX/Impacts/._impact.wav'));
+      new IndexWriter(db).upsert(
+        toIndexRecord(library, {
+          absolutePath: stale,
+          filename: '._impact.wav',
+          extension: '.wav',
+          fileSize: 1,
+          modifiedAt: 1,
+        }),
+      );
+      expect(countFiles(db, library.id)).toBe(2);
+      expect(search(db, { ...BASE_QUERY, text: 'macosx' }).total).toBe(1);
+
+      await indexer.enqueue(getLibrary(db, library.id)!);
+
+      expect(countFiles(db, library.id)).toBe(1);
+      expect(search(db, { ...BASE_QUERY, text: 'macosx' }).total).toBe(0);
+      expect(existsSync(stale)).toBe(true);
     });
 
     it('treats a moved file as a delete plus an add', async () => {

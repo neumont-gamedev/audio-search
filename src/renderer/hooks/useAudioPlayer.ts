@@ -9,6 +9,7 @@ export interface PlayerState {
   position: number;
   duration: number;
   volume: number;
+  loop: boolean;
   error: string | null;
 }
 
@@ -20,13 +21,32 @@ export interface UseAudioPlayer extends PlayerState {
   stop: () => void;
   seek: (seconds: number) => void;
   setVolume: (volume: number) => void;
+  setLoop: (loop: boolean) => void;
 }
 
-const VOLUME_KEY = 'audioBrowser.volume';
+/**
+ * Every launch starts at full volume; the slider is a per-session adjustment and is
+ * deliberately not persisted, so a level left low last time cannot make previews seem silent.
+ */
+const INITIAL_VOLUME = 1;
 
-function loadVolume(): number {
-  const stored = Number(localStorage.getItem(VOLUME_KEY));
-  return Number.isFinite(stored) && stored >= 0 && stored <= 1 ? stored : 0.8;
+/** Loop is a listening mode, not a level, so unlike volume it is remembered. */
+const LOOP_KEY = 'audioBrowser.loop';
+
+export function loadFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function saveFlag(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    // Storage can be unavailable; the toggle still works for this session.
+  }
 }
 
 /**
@@ -48,14 +68,17 @@ export function useAudioPlayer(): UseAudioPlayer {
     playing: false,
     position: 0,
     duration: 0,
-    volume: loadVolume(),
+    volume: INITIAL_VOLUME,
+    loop: loadFlag(LOOP_KEY),
     error: null,
   });
 
   if (audioRef.current === null && typeof Audio !== 'undefined') {
     const element = new Audio();
     element.preload = 'auto';
-    element.volume = loadVolume();
+    element.volume = INITIAL_VOLUME;
+    // Survives src swaps, so every sound auditioned while it is on repeats.
+    element.loop = loadFlag(LOOP_KEY);
     audioRef.current = element;
   }
 
@@ -171,9 +194,14 @@ export function useAudioPlayer(): UseAudioPlayer {
   const setVolume = useCallback((volume: number) => {
     const clamped = Math.max(0, Math.min(volume, 1));
     if (audioRef.current) audioRef.current.volume = clamped;
-    localStorage.setItem(VOLUME_KEY, String(clamped));
     setState((s) => ({ ...s, volume: clamped }));
   }, []);
 
-  return { ...state, play, toggle, pause, resume, stop, seek, setVolume };
+  const setLoop = useCallback((loop: boolean) => {
+    if (audioRef.current) audioRef.current.loop = loop;
+    saveFlag(LOOP_KEY, loop);
+    setState((s) => ({ ...s, loop }));
+  }, []);
+
+  return { ...state, play, toggle, pause, resume, stop, seek, setVolume, setLoop };
 }

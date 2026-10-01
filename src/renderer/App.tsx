@@ -9,7 +9,7 @@ import { PlayerBar } from './components/PlayerBar';
 import { ResultsTable } from './components/ResultsTable';
 import { SearchBar } from './components/SearchBar';
 import { StatusBar } from './components/StatusBar';
-import { useAudioPlayer } from './hooks/useAudioPlayer';
+import { loadFlag, saveFlag, useAudioPlayer } from './hooks/useAudioPlayer';
 import { useLibraries } from './hooks/useLibraries';
 import { EMPTY_FILTERS, useSearch } from './hooks/useSearch';
 import { useToasts } from './hooks/useToasts';
@@ -33,6 +33,7 @@ interface PendingCopy {
 }
 
 const ACTIVE_DESTINATION_KEY = 'audioBrowser.activeDestination';
+const AUTO_PLAY_KEY = 'audioBrowser.autoPlay';
 
 export function App() {
   const search = useSearch();
@@ -47,12 +48,17 @@ export function App() {
   const [pendingCopy, setPendingCopy] = useState<PendingCopy | null>(null);
   const [libraryToRemove, setLibraryToRemove] = useState<Library | null>(null);
   const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
+  const [autoPlay, setAutoPlay] = useState(() => loadFlag(AUTO_PLAY_KEY));
   const [activeDestinationId, setActiveDestinationId] = useState<number | null>(() => {
     const stored = Number(localStorage.getItem(ACTIVE_DESTINATION_KEY));
     return Number.isInteger(stored) && stored > 0 ? stored : null;
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // Read by keyboard handlers, which can fire again before their effect re-registers with
+  // fresh state; the ref is updated during render, so it is never a keypress behind.
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
 
   const items = search.items;
   const ids = useMemo(() => items.map((item) => item.id), [items]);
@@ -123,6 +129,28 @@ export function App() {
     },
     [ids],
   );
+
+  /**
+   * Keyboard navigation. With auto-play on, landing on a new row plays it. Extending a
+   * selection with Shift never plays: that is choosing files, not auditioning them. Mouse
+   * clicks deliberately do not auto-play, since double-click and the row's play button
+   * already toggle playback and would immediately stop what the click started.
+   */
+  const navigateAndAudition = useCallback(
+    (delta: number, extend: boolean) => {
+      const before = selectionRef.current;
+      navigate(delta, extend);
+      if (!autoPlay || extend) return;
+
+      const after = moveCursor(before, ids, delta, false);
+      if (after.cursorId === null || after.cursorId === before.cursorId) return;
+      const file = byId.get(after.cursorId);
+      if (file) player.play(file);
+    },
+    [navigate, autoPlay, ids, byId, player],
+  );
+
+  useEffect(() => saveFlag(AUTO_PLAY_KEY, autoPlay), [autoPlay]);
 
   /* --------------------------------------------------------- file actions */
 
@@ -310,22 +338,22 @@ export function App() {
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        navigate(1, event.shiftKey);
+        navigateAndAudition(1, event.shiftKey);
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        navigate(-1, event.shiftKey);
+        navigateAndAudition(-1, event.shiftKey);
         return;
       }
       if (event.key === 'PageDown') {
         event.preventDefault();
-        navigate(20, event.shiftKey);
+        navigateAndAudition(20, event.shiftKey);
         return;
       }
       if (event.key === 'PageUp') {
         event.preventDefault();
-        navigate(-20, event.shiftKey);
+        navigateAndAudition(-20, event.shiftKey);
         return;
       }
 
@@ -344,7 +372,7 @@ export function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cursorFile, navigate, player, copyPath, copySelectionToActive, ids]);
+  }, [cursorFile, navigateAndAudition, player, copyPath, copySelectionToActive, ids]);
 
   /* ------------------------------------------------------------------ view */
 
@@ -419,7 +447,11 @@ export function App() {
         )}
       </div>
 
-      <PlayerBar player={player} />
+      <PlayerBar
+        player={player}
+        autoPlay={autoPlay}
+        onToggleAutoPlay={() => setAutoPlay((previous) => !previous)}
+      />
 
       <StatusBar
         total={search.total}
