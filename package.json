@@ -1,6 +1,6 @@
 {
   "name": "audio-asset-browser",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Fast local-first browser for large game audio asset collections",
   "main": "out/main/main.js",
   "private": true,

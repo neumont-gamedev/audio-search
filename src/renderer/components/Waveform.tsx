@@ -9,7 +9,7 @@ interface Props {
 
 /**
  * Draws a sound's peaks into the player bar's scrub slot. The part already played is drawn
- * in the accent colour, the rest dimmed, so it doubles as the progress bar. Seeking is
+ * in --waveform-played, the rest dimmed, so it doubles as the progress bar. Seeking is
  * handled by the parent slot, exactly as for the plain bar this replaces.
  */
 export function Waveform({ peaks, progress }: Props) {
@@ -41,7 +41,7 @@ export function Waveform({ peaks, progress }: Props) {
     if (canvas.height !== height) canvas.height = height;
 
     const styles = getComputedStyle(canvas);
-    const played = styles.getPropertyValue('--accent').trim() || '#4d9fff';
+    const played = styles.getPropertyValue('--waveform-played').trim() || '#f7d046';
     const unplayed = styles.getPropertyValue('--text-faint').trim() || '#666';
 
     context.clearRect(0, 0, width, height);

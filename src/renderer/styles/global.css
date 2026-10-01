@@ -22,6 +22,10 @@
   --warning: #e6b455;
   --success: #57c785;
 
+  /* Player colours, kept apart from --accent so the transport reads at a glance. */
+  --waveform-played: #f7d046;
+  --volume: #ffffff;
+
   --row-height: 26px;
   --font: 13px/1.4 "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: 12px/1.4 "Cascadia Mono", "Consolas", ui-monospace, monospace;
@@ -567,7 +571,8 @@ input:focus {
 
 .scrub-fill {
   height: 100%;
-  background: var(--accent);
+  /* Same colour as the waveform it stands in for, so progress always looks the same. */
+  background: var(--waveform-played);
 }
 
 .player .time {
@@ -582,9 +587,46 @@ input:focus {
   gap: 5px;
 }
 
+/* Drawn by hand: the native slider cannot be made thinner and dwarfed the 24px transport
+   buttons. --fill (set inline from the volume) paints the part to the left of the knob. */
 .volume input {
+  -webkit-appearance: none;
+  appearance: none;
   width: 80px;
-  accent-color: var(--accent);
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.volume input::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--volume) var(--fill, 100%),
+    var(--border-strong) var(--fill, 100%)
+  );
+}
+
+.volume input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  /* Centres the knob on the 3px track: (3 - 10) / 2. */
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--volume);
+}
+
+.volume input:focus-visible {
+  outline: none;
+}
+
+/* Keyboard users still see where focus is, on the knob rather than around the slider. */
+.volume input:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 /* --------------------------------------------------------------- statusbar */

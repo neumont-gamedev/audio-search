@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import type { UseAudioPlayer } from '../hooks/useAudioPlayer';
 import { useWaveform } from '../hooks/useWaveform';
 import { Waveform } from './Waveform';
@@ -93,7 +93,13 @@ export function PlayerBar({ player, autoPlay, onToggleAutoPlay }: Props) {
           max={1}
           step={0.01}
           value={volume}
+          style={{ '--fill': `${volume * 100}%` } as CSSProperties}
           onChange={(event) => player.setVolume(Number(event.target.value))}
+          // Let go of focus after a mouse drag: a focused slider counts as typing, so Space
+          // would stop auditioning the selected row until something else was clicked.
+          onPointerUp={(event) => {
+            if (event.pointerType === 'mouse') event.currentTarget.blur();
+          }}
           title={`Volume ${Math.round(volume * 100)}%`}
           aria-label="Volume"
         />
